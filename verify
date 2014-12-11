@@ -1,0 +1,35 @@
+#!/usr/bin/env scala
+
+import scala.io.Source
+import scala.sys.process._
+import scala.util.Try
+
+// Parse command line arguments
+val branch = Try(args(0)).getOrElse(sys.error("Missing argument for branch!"))
+val takeCount = Try(args(1).toInt).getOrElse(Int.MaxValue)
+
+// Current branch
+val currentBranch = "git symbolic-ref --short head".!!
+
+// Sequence of relevant commit ids
+val commitIds =
+  Source.fromString(s"git log --oneline $branch".!!)
+    .getLines
+    .toVector
+    .init
+    .take(takeCount)
+    .collect { case line if !line.contains("verify:ignore") => line.take(7) }
+    .reverse
+
+// Process made up from steps checking out the above commits and running `sbt clean test`
+val verify =
+  (Process("sbt clean") /: commitIds) { (steps, commitId) =>
+    steps #&& s"git checkout $commitId" #&& "sbt clean test"
+  }
+
+// Run above process, checkout current branch and report result
+if (verify.! == 0) {
+  s"git checkout $currentBranch".!!
+  println(s"Successfully verified $branch")
+} else
+  println(s"Verification of $branch failed!")

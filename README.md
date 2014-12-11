@@ -1,6 +1,32 @@
-# reactive-flows #
+# Reactive Flows #
 
-Welcome to reactive-flows!
+Reactive Flows is a demo project showing a Reactive web app built with:
+
+- Scala (there are plans to have a Java version, too)
+- Akka
+- Akka HTTP
+- Akka SSE (Server-Sent Events)
+- Akka Cluster Sharding
+- Akka Data Replication
+- AngularJS
+
+## REST API Examples ##
+
+```
+curl -i 127.0.0.1:9001/flows
+curl -i -H 'Content-Type: application/json' -d '{ "label": "Akka" }' 127.0.0.1:9001/flows
+curl -i -H 'Content-Type: application/json' -d '{ "label": "AngularJS" }' 127.0.0.1:9001/flows
+curl -i -H 'Content-Type: application/json' -d '{ "text": "Akka rocks!" }' 127.0.0.1:9001/flows/akka/messages
+curl -i 127.0.0.1:9001/flows/akka/messages
+
+curl -N 127.0.0.1:9001/messages
+curl -i -H 'Content-Type: application/json' -d '{ "text": "Akka and AngularJS are a great combination!" }' 127.0.0.1:9001/flows/akka/messages
+curl -i -H 'Content-Type: application/json' -d '{ "text": "AngularJS rocks!" }' 127.0.0.1:9001/flows/angularjs/messages
+
+curl -i -X DELETE 127.0.0.1:9001/flows/akka
+
+curl 127.0.0.1:9001/shutdown
+```
 
 ## Contribution policy ##
 

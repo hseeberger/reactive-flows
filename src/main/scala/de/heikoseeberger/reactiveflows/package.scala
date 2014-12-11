@@ -18,11 +18,11 @@ package de.heikoseeberger
 
 package object reactiveflows {
 
-  private[reactiveflows] type Traversable[+A] = scala.collection.immutable.Traversable[A]
+  private[reactiveflows]type Traversable[+A] = scala.collection.immutable.Traversable[A]
 
-  private[reactiveflows] type Iterable[+A] = scala.collection.immutable.Iterable[A]
+  private[reactiveflows]type Iterable[+A] = scala.collection.immutable.Iterable[A]
 
-  private[reactiveflows] type Seq[+A] = scala.collection.immutable.Seq[A]
+  private[reactiveflows]type Seq[+A] = scala.collection.immutable.Seq[A]
 
-  private[reactiveflows] type IndexedSeq[+A] = scala.collection.immutable.IndexedSeq[A]
+  private[reactiveflows]type IndexedSeq[+A] = scala.collection.immutable.IndexedSeq[A]
 }
