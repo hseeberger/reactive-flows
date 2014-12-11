@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ExtendedActorSystem, Extension, ExtensionKey }
+import scala.concurrent.duration.{ FiniteDuration, MILLISECONDS }
 
 object Settings extends ExtensionKey[Settings]
 
@@ -29,6 +30,18 @@ class Settings(system: ExtendedActorSystem) extends Extension {
 
     val port: Int =
       reactiveFlows.getInt("http-service.port")
+
+    val askTimeout: FiniteDuration =
+      FiniteDuration(reactiveFlows.getDuration("http-service.ask-timeout", MILLISECONDS), MILLISECONDS)
+  }
+
+  object flowRepository {
+
+    val readTimeout: FiniteDuration =
+      FiniteDuration(reactiveFlows.getDuration("flow-repository.read-timeout", MILLISECONDS), MILLISECONDS)
+
+    val writeTimeout: FiniteDuration =
+      FiniteDuration(reactiveFlows.getDuration("flow-repository.write-timeout", MILLISECONDS), MILLISECONDS)
   }
 
   private val reactiveFlows = system.settings.config.getConfig("reactive-flows")

@@ -1,4 +1,4 @@
-var reactiveFlows = angular.module('reactiveFlows', ['reactiveFlowsControllers', 'ngRoute']);
+var reactiveFlows = angular.module('reactiveFlows', ['reactiveFlowsServices', 'reactiveFlowsControllers', 'ngRoute']);
 
 reactiveFlows.config(['$routeProvider', function ($routeProvider) {
     $routeProvider

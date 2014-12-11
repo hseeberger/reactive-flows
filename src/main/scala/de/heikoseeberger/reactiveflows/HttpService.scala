@@ -18,19 +18,22 @@ package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.http.Http
+import akka.http.model.StatusCodes
 import akka.http.server.{ Directives, Route }
 import akka.stream.actor.ActorPublisher
 import akka.stream.scaladsl.{ ImplicitFlowMaterializer, Source }
+import akka.util.Timeout
 import de.heikoseeberger.akkasse.{ Sse, SseMarshalling }
-import scala.concurrent.duration.DurationInt
-import spray.json.{ PrettyPrinter, jsonWriter }
+import de.heikoseeberger.reactiveflows.util.SprayJsonMarshalling
+import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import spray.json.{ DefaultJsonProtocol, PrettyPrinter, jsonWriter }
 
 object HttpService {
 
   private case object Shutdown
 
-  def props(interface: String, port: Int): Props =
-    Props(new HttpService(interface, port))
+  def props(interface: String, port: Int, askTimeout: FiniteDuration): Props =
+    Props(new HttpService(interface, port)(askTimeout))
 
   implicit def flowEventToSseMessage(event: Flow.Event): Sse.Message =
     event match {
@@ -38,14 +41,24 @@ object HttpService {
         val data = PrettyPrinter(jsonWriter[Flow.MessageAdded].write(messageAdded))
         Sse.Message(data, Some("added"))
     }
+
+  implicit def flowRepositoryEventToSseMessage(event: FlowRepository.Event): Sse.Message =
+    event match {
+      case FlowRepository.FlowAdded(flowData) =>
+        Sse.Message(PrettyPrinter(jsonWriter[FlowRepository.FlowData].write(flowData)), Some("added"))
+      case FlowRepository.FlowRemoved(name) =>
+        Sse.Message(name, Some("removed"))
+    }
 }
 
-class HttpService(interface: String, port: Int)
+class HttpService(interface: String, port: Int)(implicit askTimeout: Timeout)
     extends Actor
     with ActorLogging
     with Directives
     with ImplicitFlowMaterializer
-    with SseMarshalling {
+    with SseMarshalling
+    with SprayJsonMarshalling
+    with DefaultJsonProtocol {
 
   import HttpService._
   import context.dispatcher
@@ -62,8 +75,11 @@ class HttpService(interface: String, port: Int)
   protected def createFlowEventPublisher(): ActorRef =
     context.actorOf(FlowEventPublisher.props)
 
+  protected def createFlowRepositoryEventPublisher(): ActorRef =
+    context.actorOf(FlowRepositoryEventPublisher.props)
+
   private def route: Route =
-    assets ~ shutdown ~ messages
+    assets ~ shutdown ~ messages ~ flows
 
   private def assets: Route =
     // format: OFF
@@ -91,4 +107,45 @@ class HttpService(interface: String, port: Int)
         }
       }
     }
+
+  private def flows: Route =
+    // format: OFF
+    pathPrefix("flows") {
+      path(Segment) { flowName =>
+        delete {
+          complete {
+            FlowRepository(context.system)
+              .remove(flowName)
+              .mapTo[FlowRepository.RemoveFlowReponse]
+              .map {
+                case _: FlowRepository.FlowRemoved => StatusCodes.NoContent
+                case _: FlowRepository.UnknownFlow => StatusCodes.NotFound
+              }
+          }
+        }
+      } ~
+      get {
+        parameter("events") { _ =>
+          complete {
+              Source(ActorPublisher[FlowRepository.Event](createFlowRepositoryEventPublisher()))
+          }
+        } ~
+        complete {
+          FlowRepository(context.system).findAll
+        }
+      } ~
+      post {
+        entity(as[FlowRepository.AddFlowRequest]) { flowRequest =>
+          complete {
+            FlowRepository(context.system)
+              .add(flowRequest)
+              .mapTo[FlowRepository.AddFlowReponse]
+              .map {
+                case _: FlowRepository.FlowAdded             => StatusCodes.Created
+                case _: FlowRepository.FlowAlreadyRegistered => StatusCodes.Conflict
+              }
+          }
+        }
+      }
+    } // format: ON
 }
