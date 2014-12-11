@@ -21,3 +21,6 @@ import spray.json.DefaultJsonProtocol
 
 case class Message(text: String, dateTime: LocalDateTime)
 object Message extends DefaultJsonProtocol { implicit val format = jsonFormat2(apply) }
+
+case class MessageRequest(text: String)
+object MessageRequest extends DefaultJsonProtocol { implicit val format = jsonFormat1(apply) }

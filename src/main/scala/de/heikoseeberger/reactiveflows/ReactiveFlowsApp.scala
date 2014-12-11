@@ -22,8 +22,10 @@ import de.heikoseeberger.reactiveflows.util.BaseApp
 
 object ReactiveFlowsApp extends BaseApp[Unit] {
 
-  override def run(system: ActorSystem, log: LoggingAdapter): Unit =
+  override def run(system: ActorSystem, log: LoggingAdapter): Unit = {
+    Flows(system).start()
     system.actorOf(Reaper.props, "reaper")
+  }
 }
 
 object Reaper {

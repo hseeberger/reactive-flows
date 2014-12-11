@@ -17,9 +17,8 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ ActorLogging, Props }
+import akka.contrib.pattern.{ DistributedPubSubExtension, DistributedPubSubMediator }
 import akka.stream.actor.{ ActorPublisher, ActorPublisherMessage }
-import java.time.LocalDateTime
-import scala.concurrent.duration.DurationInt
 
 object FlowEventPublisher {
   def props: Props =
@@ -30,11 +29,9 @@ class FlowEventPublisher
     extends ActorPublisher[Flow.Event]
     with ActorLogging {
 
-  import context.dispatcher
-
-  context.system.scheduler.schedule(2 seconds, 2 seconds) {
-    self ! Flow.MessageAdded("akka", Message("Akka and AngularJS are a great combination!", LocalDateTime.now()))
-  }
+  private val mediator = DistributedPubSubExtension(context.system).mediator
+  mediator ! DistributedPubSubMediator.Subscribe(Flow.EventKey, self)
+  log.debug("Subscribed to flow events")
 
   override def receive: Receive = {
     case event: Flow.Event if isActive && totalDemand > 0 => sourceEvent(event)

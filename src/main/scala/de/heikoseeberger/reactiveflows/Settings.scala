@@ -44,6 +44,11 @@ class Settings(system: ExtendedActorSystem) extends Extension {
       FiniteDuration(reactiveFlows.getDuration("flow-repository.write-timeout", MILLISECONDS), MILLISECONDS)
   }
 
+  object flowSharding {
+    val shardCount: Int =
+      reactiveFlows.getInt("flow-sharding.shard-count")
+  }
+
   private val reactiveFlows = system.settings.config.getConfig("reactive-flows")
 }
 

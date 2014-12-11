@@ -25,6 +25,7 @@ import akka.stream.scaladsl.{ ImplicitFlowMaterializer, Source }
 import akka.util.Timeout
 import de.heikoseeberger.akkasse.{ Sse, SseMarshalling }
 import de.heikoseeberger.reactiveflows.util.SprayJsonMarshalling
+import scala.concurrent.Future
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 import spray.json.{ DefaultJsonProtocol, PrettyPrinter, jsonWriter }
 
@@ -111,6 +112,38 @@ class HttpService(interface: String, port: Int)(implicit askTimeout: Timeout)
   private def flows: Route =
     // format: OFF
     pathPrefix("flows") {
+      path(Segment / "messages") { flowName =>
+        get {
+          complete {
+            FlowRepository(context.system)
+              .find(flowName)
+              .flatMap { flowData =>
+                if (flowData.isEmpty)
+                  Future.successful(StatusCodes.NotFound -> Nil)
+                else
+                  Flows(context.system)
+                    .getMessages(flowName)
+                    .map(messages => StatusCodes.OK -> messages)
+              }
+          }
+        } ~
+        post {
+          entity(as[MessageRequest]) { messageRequest =>
+            complete {
+              FlowRepository(context.system)
+                .find(flowName)
+                .flatMap { flowData =>
+                  if (flowData.isEmpty)
+                    Future.successful(StatusCodes.NotFound)
+                  else
+                    Flows(context.system)
+                      .addMessage(flowName)(messageRequest.text)
+                      .map(_ => StatusCodes.Created)
+                }
+            }
+          }
+        }
+      } ~
       path(Segment) { flowName =>
         delete {
           complete {
