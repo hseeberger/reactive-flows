@@ -16,11 +16,14 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorLogging, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.http.Http
 import akka.http.server.{ Directives, Route }
-import akka.stream.scaladsl.ImplicitFlowMaterializer
+import akka.stream.actor.ActorPublisher
+import akka.stream.scaladsl.{ ImplicitFlowMaterializer, Source }
+import de.heikoseeberger.akkasse.{ Sse, SseMarshalling }
 import scala.concurrent.duration.DurationInt
+import spray.json.{ PrettyPrinter, jsonWriter }
 
 object HttpService {
 
@@ -28,13 +31,21 @@ object HttpService {
 
   def props(interface: String, port: Int): Props =
     Props(new HttpService(interface, port))
+
+  implicit def flowEventToSseMessage(event: Flow.Event): Sse.Message =
+    event match {
+      case messageAdded: Flow.MessageAdded =>
+        val data = PrettyPrinter(jsonWriter[Flow.MessageAdded].write(messageAdded))
+        Sse.Message(data, Some("added"))
+    }
 }
 
 class HttpService(interface: String, port: Int)
     extends Actor
     with ActorLogging
     with Directives
-    with ImplicitFlowMaterializer {
+    with ImplicitFlowMaterializer
+    with SseMarshalling {
 
   import HttpService._
   import context.dispatcher
@@ -48,8 +59,11 @@ class HttpService(interface: String, port: Int)
   override def receive: Receive =
     Actor.emptyBehavior
 
+  protected def createFlowEventPublisher(): ActorRef =
+    context.actorOf(FlowEventPublisher.props)
+
   private def route: Route =
-    assets ~ shutdown
+    assets ~ shutdown ~ messages
 
   private def assets: Route =
     // format: OFF
@@ -65,6 +79,15 @@ class HttpService(interface: String, port: Int)
           context.system.scheduler.scheduleOnce(500 millis, self, Shutdown)
           log.info("Shutting down now ...")
           "Shutting down now ..."
+        }
+      }
+    }
+
+  private def messages: Route =
+    path("messages") {
+      get {
+        complete {
+          Source(ActorPublisher[Flow.Event](createFlowEventPublisher()))
         }
       }
     }

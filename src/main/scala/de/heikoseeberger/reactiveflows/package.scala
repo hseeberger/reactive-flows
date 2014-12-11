@@ -16,6 +16,10 @@
 
 package de.heikoseeberger
 
+import java.time.LocalDateTime
+import java.time.format.{ DateTimeFormatter, FormatStyle }
+import spray.json.{ JsString, JsValue, RootJsonFormat }
+
 package object reactiveflows {
 
   private[reactiveflows]type Traversable[+A] = scala.collection.immutable.Traversable[A]
@@ -25,4 +29,18 @@ package object reactiveflows {
   private[reactiveflows]type Seq[+A] = scala.collection.immutable.Seq[A]
 
   private[reactiveflows]type IndexedSeq[+A] = scala.collection.immutable.IndexedSeq[A]
+
+  implicit object LocalDateTimeFormat extends RootJsonFormat[LocalDateTime] {
+
+    private val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+
+    override def write(localDateTime: LocalDateTime): JsValue =
+      JsString(formatter.format(localDateTime))
+
+    override def read(json: JsValue): LocalDateTime =
+      json match {
+        case JsString(s) => LocalDateTime.from(formatter.parse(s))
+        case _           => sys.error(s"JsString expected: $json")
+      }
+  }
 }
