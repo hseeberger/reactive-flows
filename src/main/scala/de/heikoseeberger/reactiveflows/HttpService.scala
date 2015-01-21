@@ -23,7 +23,7 @@ import akka.http.server.{ Directives, Route }
 import akka.stream.actor.ActorPublisher
 import akka.stream.scaladsl.{ ImplicitFlowMaterializer, Source }
 import akka.util.Timeout
-import de.heikoseeberger.akkasse.{ Sse, SseMarshalling }
+import de.heikoseeberger.akkasse.{ EventStreamMarshalling, ServerSentEvent }
 import de.heikoseeberger.reactiveflows.util.SprayJsonMarshalling
 import scala.concurrent.Future
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
@@ -36,19 +36,19 @@ object HttpService {
   def props(interface: String, port: Int, askTimeout: FiniteDuration): Props =
     Props(new HttpService(interface, port)(askTimeout))
 
-  implicit def flowEventToSseMessage(event: Flow.Event): Sse.Message =
+  implicit def flowEventToSseMessage(event: Flow.Event): ServerSentEvent =
     event match {
       case messageAdded: Flow.MessageAdded =>
         val data = PrettyPrinter(jsonWriter[Flow.MessageAdded].write(messageAdded))
-        Sse.Message(data, Some("added"))
+        ServerSentEvent(data, "added")
     }
 
-  implicit def flowRepositoryEventToSseMessage(event: FlowRepository.Event): Sse.Message =
+  implicit def flowRepositoryEventToSseMessage(event: FlowRepository.Event): ServerSentEvent =
     event match {
       case FlowRepository.FlowAdded(flowData) =>
-        Sse.Message(PrettyPrinter(jsonWriter[FlowRepository.FlowData].write(flowData)), Some("added"))
+        ServerSentEvent(PrettyPrinter(jsonWriter[FlowRepository.FlowData].write(flowData)), "added")
       case FlowRepository.FlowRemoved(name) =>
-        Sse.Message(name, Some("removed"))
+        ServerSentEvent(name, "removed")
     }
 }
 
@@ -57,7 +57,7 @@ class HttpService(interface: String, port: Int)(implicit askTimeout: Timeout)
     with ActorLogging
     with Directives
     with ImplicitFlowMaterializer
-    with SseMarshalling
+    with EventStreamMarshalling
     with SprayJsonMarshalling
     with DefaultJsonProtocol {
 
