@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated }
+import akka.contrib.pattern.DistributedPubSubExtension
 
 object Reaper {
 
@@ -29,14 +30,26 @@ class Reaper extends Actor with ActorLogging with SettingsActor {
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
-  context.watch(createHttpService())
+  private val flowFacade = context.watch(createFlowFacade())
+
+  context.watch(createHttpService(flowFacade))
 
   override def receive = {
     case Terminated(actor) => shutdown(actor)
   }
 
-  protected def createHttpService(): ActorRef = context.actorOf(
-    HttpService.props(settings.httpService.interface, settings.httpService.port),
+  protected def createFlowFacade(): ActorRef = context.actorOf(
+    FlowFacade.props(DistributedPubSubExtension(context.system).mediator),
+    FlowFacade.Name
+  )
+
+  protected def createHttpService(flowFacade: ActorRef): ActorRef = context.actorOf(
+    HttpService.props(
+      settings.httpService.interface,
+      settings.httpService.port,
+      flowFacade,
+      settings.httpService.flowFacadeTimeout
+    ),
     HttpService.Name
   )
 

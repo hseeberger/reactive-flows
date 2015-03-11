@@ -25,6 +25,11 @@ class ReaperSpec extends BaseAkkaSpec {
   "A Reaper" should {
 
     "shutdown the system upon termination of a child actor" in {
+      val flowFacade = actor(new Act {
+        become {
+          case "shutdown" => context.stop(self)
+        }
+      })
       val httpService = actor(new Act {
         become {
           case "shutdown" => context.stop(self)
@@ -32,9 +37,13 @@ class ReaperSpec extends BaseAkkaSpec {
       })
       val delegate = TestProbe()
       val reaper = actor(new Reaper {
-        override protected def createHttpService() = httpService
+        override protected def createFlowFacade() = flowFacade
+        override protected def createHttpService(flowFacade: ActorRef) = httpService
         override protected def shutdown(actor: ActorRef) = delegate.ref ! "shutdown"
       })
+
+      flowFacade ! "shutdown"
+      delegate.expectMsg("shutdown")
 
       httpService ! "shutdown"
       delegate.expectMsg("shutdown")
