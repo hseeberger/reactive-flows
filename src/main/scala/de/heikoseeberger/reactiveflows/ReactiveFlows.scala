@@ -29,7 +29,9 @@ class ReactiveFlows extends Actor with ActorLogging with SettingsActor {
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
-  private val flowFacade = context.watch(createFlowFacade())
+  private val mediator = context.watch(createMediator())
+
+  private val flowFacade = context.watch(createFlowFacade(mediator))
 
   context.watch(createHttpService(flowFacade))
 
@@ -37,14 +39,19 @@ class ReactiveFlows extends Actor with ActorLogging with SettingsActor {
     case Terminated(actor) => shutdown(actor)
   }
 
-  protected def createFlowFacade(): ActorRef = context.actorOf(FlowFacade.props, FlowFacade.Name)
+  protected def createMediator(): ActorRef = context.actorOf(PubSubMediator.props, PubSubMediator.Name)
+
+  protected def createFlowFacade(mediator: ActorRef): ActorRef =
+    context.actorOf(FlowFacade.props(mediator), FlowFacade.Name)
 
   protected def createHttpService(flowFacade: ActorRef): ActorRef = context.actorOf(
     HttpService.props(
       settings.httpService.interface,
       settings.httpService.port,
+      settings.httpService.selfTimeout,
       flowFacade,
-      settings.httpService.flowFacadeTimeout
+      settings.httpService.flowFacadeTimeout,
+      mediator
     ),
     HttpService.Name
   )

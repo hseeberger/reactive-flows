@@ -41,12 +41,14 @@ object FlowFacade {
 
   final val Name = "flow-facade"
 
-  def props = Props(new FlowFacade)
+  final val FlowEventKey = "flow-events"
+
+  def props(mediator: ActorRef) = Props(new FlowFacade(mediator))
 
   private def labelToName(label: String) = URLEncoder.encode(label.toLowerCase, "UTF-8")
 }
 
-class FlowFacade extends Actor with ActorLogging {
+class FlowFacade(mediator: ActorRef) extends Actor with ActorLogging {
 
   import FlowFacade._
 
@@ -60,7 +62,7 @@ class FlowFacade extends Actor with ActorLogging {
     case GetMessages(flowName)      => getMessages(flowName)
   }
 
-  protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props, name)
+  protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props(mediator), name)
 
   protected def forwardToFlow(name: String)(message: Any): Unit = context.child(name).foreach(_.forward(message))
 
@@ -73,6 +75,7 @@ class FlowFacade extends Actor with ActorLogging {
       val flowInfo = FlowInfo(name, label)
       val flowAdded = FlowAdded(flowInfo)
       flowInfoByName += name -> flowInfo
+      mediator ! PubSubMediator.Publish(FlowEventKey, flowAdded)
       sender() ! flowAdded
     }
   }
@@ -81,6 +84,7 @@ class FlowFacade extends Actor with ActorLogging {
     context.child(name).foreach(context.stop)
     flowInfoByName -= name
     val flowRemoved = FlowRemoved(name)
+    mediator ! PubSubMediator.Publish(FlowEventKey, flowRemoved)
     sender() ! flowRemoved
   }
 
