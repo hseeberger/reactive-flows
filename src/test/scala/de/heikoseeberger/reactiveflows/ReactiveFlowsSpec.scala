@@ -25,6 +25,11 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
   "ReactiveFlows" should {
 
     "shutdown the system upon termination of a child actor" in {
+      val flowFacade = actor(new Act {
+        become {
+          case "shutdown" => context.stop(self)
+        }
+      })
       val httpService = actor(new Act {
         become {
           case "shutdown" => context.stop(self)
@@ -32,9 +37,13 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       })
       val delegate = TestProbe()
       actor(new ReactiveFlows {
-        override protected def createHttpService() = httpService
+        override protected def createFlowFacade() = flowFacade
+        override protected def createHttpService(flowFacade: ActorRef) = httpService
         override protected def onTerminated(actor: ActorRef) = delegate.ref ! "shutdown"
       })
+
+      flowFacade ! "shutdown"
+      delegate.expectMsg("shutdown")
 
       httpService ! "shutdown"
       delegate.expectMsg("shutdown")
