@@ -22,9 +22,10 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives
 import akka.pattern.{ ask, pipe }
-import akka.stream.Materializer
-import akka.stream.scaladsl.ImplicitMaterializer
+import akka.stream.scaladsl.{ ImplicitMaterializer, Source }
+import akka.stream.{ Materializer, OverflowStrategy }
 import akka.util.Timeout
+import de.heikoseeberger.akkasse.EventStreamMarshalling
 import scala.concurrent.ExecutionContext
 
 object HttpService {
@@ -37,13 +38,14 @@ object HttpService {
 
   final val Name = "http-service"
 
-  def props(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout): Props =
-    Props(new HttpService(interface, port, flowFacade, flowFacadeTimeout))
+  def props(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout, mediator: ActorRef, eventBufferSize: Int): Props =
+    Props(new HttpService(interface, port, flowFacade, flowFacadeTimeout, mediator, eventBufferSize))
 
   private[reactiveflows] def route(
-    httpService: ActorRef, flowFacade: ActorRef, flowFacadeTimeout: Timeout
+    httpService: ActorRef, flowFacade: ActorRef, flowFacadeTimeout: Timeout, mediator: ActorRef, eventBufferSize: Int
   )(implicit ec: ExecutionContext, mat: Materializer) = {
     import Directives._
+    import EventStreamMarshalling._
     import JsonProtocol._
     import SprayJsonSupport._
 
@@ -98,14 +100,34 @@ object HttpService {
         }
       }
     }
+
+    def flowEvents = path("flow-events") {
+      get {
+        complete {
+          Source.actorRef[FlowFacade.FlowEvent](eventBufferSize, OverflowStrategy.dropHead)
+            .map(ServerSentEventProtocol.flowEventToServerSentEvent)
+            .mapMaterializedValue(source => mediator ! PubSubMediator.Subscribe(FlowFacade.FlowEventKey, source))
+        }
+      }
+    }
+
+    def messageEvents = path("message-events") {
+      get {
+        complete {
+          Source.actorRef[Flow.MessageEvent](eventBufferSize, OverflowStrategy.dropHead)
+            .map(ServerSentEventProtocol.messageEventToServerSentEvent)
+            .mapMaterializedValue(source => mediator ! PubSubMediator.Subscribe(Flow.MessageEventKey, source))
+        }
+      }
+    }
     // format: ON
 
-    assets ~ shutdown ~ flows
+    assets ~ shutdown ~ flows ~ flowEvents ~ messageEvents
   }
 }
 
-class HttpService(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout)
-    extends Actor with ActorLogging with ImplicitMaterializer {
+class HttpService(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout, mediator: ActorRef, eventBufferSize: Int)
+    extends Actor with ActorLogging with SettingsActor with ImplicitMaterializer {
   import HttpService._
   import context.dispatcher
 
@@ -117,7 +139,7 @@ class HttpService(interface: String, port: Int, flowFacade: ActorRef, flowFacade
     case Shutdown                    => context.stop(self)
   }
 
-  private def serveHttp() = Http(context.system)
-    .bindAndHandle(route(self, flowFacade, flowFacadeTimeout), interface, port)
+  protected def serveHttp(): Unit = Http(context.system)
+    .bindAndHandle(route(self, flowFacade, flowFacadeTimeout, mediator, eventBufferSize), interface, port)
     .pipeTo(self)
 }

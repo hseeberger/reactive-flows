@@ -24,12 +24,14 @@ object FlowFacade {
   case object GetFlows
   case class FlowDescriptor(name: String, label: String)
 
+  sealed trait FlowEvent
+
   case class AddFlow(label: String)
-  case class FlowAdded(flowDescriptor: FlowDescriptor)
+  case class FlowAdded(flowDescriptor: FlowDescriptor) extends FlowEvent
   case class ExistingFlow(label: String)
 
   case class RemoveFlow(name: String)
-  case class FlowRemoved(name: String)
+  case class FlowRemoved(name: String) extends FlowEvent
   case class UnknownFlow(name: String)
 
   case class GetMessages(flowName: String)
@@ -37,12 +39,14 @@ object FlowFacade {
 
   final val Name = "flow-facade"
 
-  def props: Props = Props(new FlowFacade)
+  final val FlowEventKey = "flow-events"
+
+  def props(mediator: ActorRef): Props = Props(new FlowFacade(mediator))
 
   private def labelToName(label: String) = URLEncoder.encode(label.toLowerCase, "UTF-8")
 }
 
-class FlowFacade extends Actor with ActorLogging {
+class FlowFacade(mediator: ActorRef) extends Actor with ActorLogging {
   import FlowFacade._
 
   private var flowDescriptorByName = Map.empty[String, FlowDescriptor]
@@ -55,7 +59,7 @@ class FlowFacade extends Actor with ActorLogging {
     case AddMessage(flowName, text) => addMessage(flowName, text)
   }
 
-  protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props, name)
+  protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props(mediator), name)
 
   protected def forwardToFlow(name: String)(message: Any): Unit = context.child(name).foreach(_.forward(message))
 
@@ -64,6 +68,7 @@ class FlowFacade extends Actor with ActorLogging {
     val flowDescriptor = FlowDescriptor(name, label)
     val flowAdded = FlowAdded(flowDescriptor)
     flowDescriptorByName += name -> flowDescriptor
+    mediator ! PubSubMediator.Publish(FlowEventKey, flowAdded)
     sender() ! flowAdded
   }
 
@@ -71,6 +76,7 @@ class FlowFacade extends Actor with ActorLogging {
     context.child(name).foreach(context.stop)
     flowDescriptorByName -= name
     val flowRemoved = FlowRemoved(name)
+    mediator ! PubSubMediator.Publish(FlowEventKey, flowRemoved)
     sender() ! flowRemoved
   }
 

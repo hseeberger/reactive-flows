@@ -28,7 +28,8 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
   "FlowFacade" should {
     "correctly handle GetFlows, AddFlow and RemoveFlow commands" in {
-      val flowFacade = system.actorOf(FlowFacade.props)
+      val mediator = TestProbe()
+      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref))
 
       val sender = TestProbe()
       implicit val senderRef = sender.ref
@@ -38,6 +39,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDescriptor("akka", "Akka")))
+      mediator.expectMsg(PubSubMediator.Publish(FlowFacade.FlowEventKey, FlowAdded(FlowDescriptor("akka", "Akka"))))
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(ExistingFlow("Akka"))
@@ -47,6 +49,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowRemoved("akka"))
+      mediator.expectMsg(PubSubMediator.Publish(FlowFacade.FlowEventKey, FlowRemoved("akka")))
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(UnknownFlow("akka"))
@@ -56,6 +59,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
     }
 
     "correctly handle GetMessages and AddMessage commands" in {
+      val mediator = TestProbe()
       val flow = TestProbe()
       flow.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any) = {
@@ -69,7 +73,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
           }
         }
       })
-      val flowFacade = actor(new FlowFacade {
+      val flowFacade = actor(new FlowFacade(mediator.ref) {
         override protected def createFlow(name: String) = flow.ref
         override protected def forwardToFlow(name: String)(message: Any) = flow.ref.forward(message)
       })
