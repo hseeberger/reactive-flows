@@ -23,10 +23,15 @@ object Settings extends ExtensionKey[Settings]
 
 class Settings(system: ExtendedActorSystem) extends Extension {
 
+  object flowEventPublisher {
+    val bufferSize = reactiveFlows.getInt("flow-event-publisher.buffer-size")
+  }
+
   object httpService {
     val flowFacadeTimeout = getDuration("http-service.flow-facade-timeout")
     val interface = reactiveFlows.getString("http-service.interface")
     val port = reactiveFlows.getInt("http-service.port")
+    val selfTimeout = getDuration("http-service.self-timeout")
   }
 
   object messageEventPublisher {
