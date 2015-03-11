@@ -16,12 +16,17 @@
 
 package de.heikoseeberger.reactiveflows
 
+import akka.actor.ActorDSL.actor
 import akka.actor.ActorRef
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.{ RouteTest, TestFrameworkInterface }
+import akka.stream.scaladsl.Source
 import akka.testkit.{ TestActor, TestProbe }
 import de.heikoseeberger.akkahttpjsonspray.SprayJsonMarshalling
+import de.heikoseeberger.akkasse.ServerSentEvent
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import org.scalatest.{ Matchers, WordSpec }
 import spray.json.pimpString
 
@@ -38,7 +43,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
       val httpService = TestProbe()
       val flowFacade = TestProbe()
       val request = Delete()
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.OK
       }
       httpService.expectMsg(Shutdown)
@@ -48,7 +53,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
       val httpService = TestProbe()
       val flowFacade = TestProbe()
       val request = Get()
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.OK
         responseAs[String].trim shouldBe "test"
       }
@@ -58,7 +63,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
       val httpService = TestProbe()
       val flowFacade = TestProbe()
       val request = Get("/index.html")
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.OK
         responseAs[String].trim shouldBe "test"
       }
@@ -78,7 +83,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
         }
       })
       val request = Get("/flows")
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.OK
         responseAs[String].parseJson shouldBe
           """|[
@@ -99,7 +104,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
         }
       })
       val request = Post("/flows", AddFlowRequest("Akka"))
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.Created
         responseAs[String].parseJson shouldBe
           """|{
@@ -119,7 +124,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
         }
       })
       val request = Post("/flows", AddFlowRequest("Akka"))
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.Conflict
         responseAs[String].parseJson shouldBe
           """|{ "label": "Akka" }""".stripMargin.parseJson
@@ -137,7 +142,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
         }
       })
       val request = Delete("/flows/akka")
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.NoContent
       }
     }
@@ -153,7 +158,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
         }
       })
       val request = Delete("/flows/unknown")
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.NotFound
       }
     }
@@ -169,7 +174,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
         }
       })
       val request = Get("/flows/akka/messages")
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.OK
       }
     }
@@ -185,9 +190,113 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with TestFra
         }
       })
       val request = Get("/flows/unknown/messages")
-      request ~> route(httpService.ref, flowFacade.ref, flowFacadeTimeout) ~> check {
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
         response.status shouldBe StatusCodes.NotFound
       }
     }
+
+    "ask itself CreateFlowEventSource and respond with OK and an SSE stream upon a GET for '/flow-events'" in {
+      val httpService = TestProbe()
+      httpService.setAutoPilot(new TestActor.AutoPilot {
+        def run(sender: ActorRef, msg: Any) = msg match {
+          case CreateFlowEventSource =>
+            sender ! Source(List(
+              FlowFacade.FlowAdded(FlowFacade.FlowInfo("akka", "Akka")),
+              FlowFacade.FlowRemoved("angularjs")
+            )).map(ServerSentEventProtocol.flowEventToServerSentEvent)
+            TestActor.NoAutoPilot
+        }
+      })
+      val flowFacade = TestProbe()
+      val request = Get("/flow-events")
+      request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
+        response.status shouldBe StatusCodes.OK
+        val expected = """|event:added
+                          |data:{
+                          |data:  "name": "akka",
+                          |data:  "label": "Akka"
+                          |data:}
+                          |
+                          |event:removed
+                          |data:angularjs
+                          |
+                          |""".stripMargin
+        responseAs[String] shouldBe expected
+      }
+      httpService.expectMsg(CreateFlowEventSource)
+    }
+  }
+
+  "respond with a Source upon a CreateFlowEventSource" in {
+    val mediator = TestProbe()
+    val flowFacade = TestProbe()
+    val flowEventSource = Source.empty[ServerSentEvent]
+    val httpService = actor(new HttpService(interface, port, selfTimeout, flowFacade.ref, flowFacadeTimeout, mediator.ref) {
+      override protected def serveHttp() = ()
+      override protected def createFlowEventSource() = flowEventSource
+    })
+
+    val sender = TestProbe()
+    implicit val senderRef = sender.ref
+
+    httpService ! CreateFlowEventSource
+    sender.expectMsg(flowEventSource)
+  }
+
+  "ask itself CreateMessageEventSource and respond with OK and an SSE stream upon a GET for '/message-events'" in {
+    val time = LocalDateTime.from(DateTimeFormatter.ISO_LOCAL_DATE_TIME.parse("2015-04-14T19:20:21"))
+    val httpService = TestProbe()
+    httpService.setAutoPilot(new TestActor.AutoPilot {
+      def run(sender: ActorRef, msg: Any) = msg match {
+        case CreateMessageEventSource =>
+          sender ! Source(List(
+            Flow.MessageAdded("akka", Flow.Message("Akka rocks!", time)),
+            Flow.MessageAdded("angularjs", Flow.Message("AngularJS rocks!", time))
+          )).map(ServerSentEventProtocol.messageEventToServerSentEvent)
+          TestActor.NoAutoPilot
+      }
+    })
+    val flowFacade = TestProbe()
+    val request = Get("/message-events")
+    request ~> route(httpService.ref, selfTimeout, flowFacade.ref, flowFacadeTimeout) ~> check {
+      response.status shouldBe StatusCodes.OK
+      val expected = """|event:added
+                        |data:{
+                        |data:  "flowName": "akka",
+                        |data:  "message": {
+                        |data:    "text": "Akka rocks!",
+                        |data:    "dateTime": "2015-04-14 19:20:21"
+                        |data:  }
+                        |data:}
+                        |
+                        |event:added
+                        |data:{
+                        |data:  "flowName": "angularjs",
+                        |data:  "message": {
+                        |data:    "text": "AngularJS rocks!",
+                        |data:    "dateTime": "2015-04-14 19:20:21"
+                        |data:  }
+                        |data:}
+                        |
+                        |""".stripMargin
+      responseAs[String] shouldBe expected
+    }
+    httpService.expectMsg(CreateMessageEventSource)
+  }
+
+  "respond with a Source upon a CreateMessageEventSource" in {
+    val mediator = TestProbe()
+    val flowFacade = TestProbe()
+    val messageEventSource = Source.empty[ServerSentEvent]
+    val httpService = actor(new HttpService(interface, port, selfTimeout, flowFacade.ref, flowFacadeTimeout, mediator.ref) {
+      override protected def serveHttp() = ()
+      override protected def createMessageEventSource() = messageEventSource
+    })
+
+    val sender = TestProbe()
+    implicit val senderRef = sender.ref
+
+    httpService ! CreateMessageEventSource
+    sender.expectMsg(messageEventSource)
   }
 }
