@@ -29,14 +29,21 @@ class ReactiveFlows extends Actor with ActorLogging with SettingsActor {
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
-  context.watch(createHttpService())
+  context.watch(createHttpService(context.watch(createFlowFacade())))
 
   override def receive = {
     case Terminated(actor) => onTerminated(actor)
   }
 
-  protected def createHttpService(): ActorRef = context.actorOf(
-    HttpService.props(settings.httpService.interface, settings.httpService.port),
+  protected def createFlowFacade(): ActorRef = context.actorOf(FlowFacade.props, FlowFacade.Name)
+
+  protected def createHttpService(flowFacade: ActorRef): ActorRef = context.actorOf(
+    HttpService.props(
+      settings.httpService.interface,
+      settings.httpService.port,
+      flowFacade,
+      settings.httpService.flowFacadeTimeout
+    ),
     HttpService.Name
   )
 
