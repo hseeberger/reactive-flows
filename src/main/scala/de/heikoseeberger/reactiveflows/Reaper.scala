@@ -47,6 +47,7 @@ class Reaper extends Actor with ActorLogging with SettingsActor {
     HttpService.props(
       settings.httpService.interface,
       settings.httpService.port,
+      settings.httpService.selfTimeout,
       flowFacade,
       settings.httpService.flowFacadeTimeout
     ),

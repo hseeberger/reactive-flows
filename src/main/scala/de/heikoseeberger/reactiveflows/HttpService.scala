@@ -17,14 +17,19 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Status }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.contrib.pattern.DistributedPubSubExtension
 import akka.http.Http
 import akka.http.model.StatusCodes
 import akka.http.server.Directives
 import akka.pattern.{ ask, pipe }
 import akka.stream.FlowMaterializer
 import akka.stream.scaladsl.{ ImplicitFlowMaterializer, Sink }
+import akka.stream.actor.ActorPublisher
+import akka.stream.scaladsl.{ Source, ImplicitFlowMaterializer }
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpjsonspray.SprayJsonMarshalling
+import de.heikoseeberger.akkasse.EventStreamMarshalling
 import scala.concurrent.ExecutionContext
 
 object HttpService {
@@ -33,18 +38,24 @@ object HttpService {
 
   case class AddMessageRequest(text: String)
 
+  private[reactiveflows] case object CreateFlowEventSource
+
+  private[reactiveflows] case object CreateMessageEventSource
+
   private[reactiveflows] case object Shutdown
 
   final val Name = "http-service"
 
-  def props(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout) =
-    Props(new HttpService(interface, port, flowFacade, flowFacadeTimeout))
+  def props(interface: String, port: Int, httpServiceTimeout: Timeout, flowFacade: ActorRef, flowFacadeTimeout: Timeout) =
+    Props(new HttpService(interface, port, httpServiceTimeout, flowFacade, flowFacadeTimeout))
 
   private[reactiveflows] def route(
-    httpService: ActorRef, flowFacade: ActorRef, flowFacadeTimeout: Timeout
+    httpService: ActorRef, httpServiceTimeout: Timeout, flowFacade: ActorRef, flowFacadeTimeout: Timeout
   )(implicit ec: ExecutionContext, mat: FlowMaterializer) = {
     import Directives._
+    import EventStreamMarshalling._
     import JsonProtocol._
+    import ServerSentEventProtocol._
     import SprayJsonMarshalling._
 
     // format: OFF
@@ -98,14 +109,32 @@ object HttpService {
         }
       }
     }
+
+    def flowEvents = path("flow-events") {
+      implicit val timeout = httpServiceTimeout
+      get {
+        complete {
+          (httpService ? CreateFlowEventSource).mapTo[Source[FlowFacade.FlowEvent, Unit]]
+        }
+      }
+    }
+
+    def messageEvents = path("message-events") {
+      implicit val timeout = httpServiceTimeout
+      get {
+        complete {
+          (httpService ? CreateMessageEventSource).mapTo[Source[Flow.MessageEvent, Unit]]
+        }
+      }
+    }
     // format: ON
 
-    assets ~ shutdown ~ flows
+    assets ~ shutdown ~ flows ~ flowEvents ~ messageEvents
   }
 }
 
-class HttpService(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout)
-    extends Actor with ActorLogging with ImplicitFlowMaterializer {
+class HttpService(interface: String, port: Int, selfTimeout: Timeout, flowFacade: ActorRef, flowFacadeTimeout: Timeout)
+    extends Actor with ActorLogging with SettingsActor with ImplicitFlowMaterializer {
 
   import HttpService._
   import context.dispatcher
@@ -115,10 +144,26 @@ class HttpService(interface: String, port: Int, flowFacade: ActorRef, flowFacade
   override def receive = {
     case Http.ServerBinding(address) => log.info("Listening on {}", address)
     case Status.Failure(_)           => context.stop(self)
+    case CreateFlowEventSource       => sender() ! createFlowEventSource()
+    case CreateMessageEventSource    => sender() ! createMessageEventSource()
     case Shutdown                    => context.stop(self)
   }
 
-  private def serveHttp() = Http(context.system)
-    .bindAndHandle(route(self, flowFacade, flowFacadeTimeout), interface, port)
+  protected def serveHttp(): Unit = Http(context.system)
+    .bindAndHandle(route(self, selfTimeout, flowFacade, flowFacadeTimeout), interface, port)
     .pipeTo(self)
+
+  protected def createFlowEventSource(): Source[FlowFacade.FlowEvent, Unit] = Source(
+    ActorPublisher[FlowFacade.FlowEvent](context.actorOf(FlowEventPublisher.props(
+      DistributedPubSubExtension(context.system).mediator,
+      settings.flowEventPublisher.bufferSize
+    )))
+  )
+
+  protected def createMessageEventSource(): Source[Flow.MessageEvent, Unit] = Source(
+    ActorPublisher[Flow.MessageEvent](context.actorOf(MessageEventPublisher.props(
+      DistributedPubSubExtension(context.system).mediator,
+      settings.messageEventPublisher.bufferSize
+    )))
+  )
 }
