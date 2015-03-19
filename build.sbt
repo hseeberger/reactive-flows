@@ -23,6 +23,6 @@ libraryDependencies ++= List(
 
 initialCommands := """|import de.heikoseeberger.reactiveflows._""".stripMargin
 
-addCommandAlias("rf1", "reStart -Dakka.remote.netty.tcp.port=2551 -Dreactive-flows.http-service.port=9001")
+addCommandAlias("rf1", "reStart -Dakka.remote.netty.tcp.port=2551 -Dreactive-flows.http-service.port=9001 -Dakka.cluster.roles.0=shared-journal")
 addCommandAlias("rf2", "run     -Dakka.remote.netty.tcp.port=2552 -Dreactive-flows.http-service.port=9002")
 addCommandAlias("rf3", "run     -Dakka.remote.netty.tcp.port=2553 -Dreactive-flows.http-service.port=9003")
