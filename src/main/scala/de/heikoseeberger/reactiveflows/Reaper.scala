@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated }
+import akka.contrib.datareplication.DataReplication
 import akka.contrib.pattern.DistributedPubSubExtension
 
 object Reaper {
@@ -39,7 +40,7 @@ class Reaper extends Actor with ActorLogging with SettingsActor {
   }
 
   protected def createFlowFacade(): ActorRef = context.actorOf(
-    FlowFacade.props(DistributedPubSubExtension(context.system).mediator),
+    FlowFacade.props(DistributedPubSubExtension(context.system).mediator, DataReplication(context.system).replicator),
     FlowFacade.Name
   )
 
