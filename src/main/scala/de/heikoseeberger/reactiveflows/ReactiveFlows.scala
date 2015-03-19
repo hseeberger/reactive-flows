@@ -32,6 +32,7 @@ class ReactiveFlows extends Actor with ActorLogging with SettingsActor {
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
   context.watch(createHttpService(context.watch(createFlowFacade())))
+  context.watch(context.actorOf(SharedJournalManager.props, SharedJournalManager.Name))
 
   override def receive = {
     case Terminated(actor) => onTerminated(actor)
