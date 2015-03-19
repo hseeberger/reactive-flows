@@ -31,6 +31,8 @@ object Flow {
 
   case class Message(text: String, dateTime: LocalDateTime)
 
+  case object Stop
+
   final val MessageEventKey = "message-events"
 
   def props(mediator: ActorRef) = Props(new Flow(mediator))
@@ -45,6 +47,7 @@ class Flow(mediator: ActorRef) extends Actor {
   override def receive = {
     case GetMessages      => sender() ! messages
     case AddMessage(text) => addMessage(text)
+    case Stop             => context.stop(self)
   }
 
   private def addMessage(text: String) = {

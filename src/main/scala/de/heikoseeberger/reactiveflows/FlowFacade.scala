@@ -16,10 +16,10 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props }
 import akka.cluster.Cluster
 import akka.contrib.datareplication.{ LWWMap, Replicator }
-import akka.contrib.pattern.DistributedPubSubMediator
+import akka.contrib.pattern.{ ClusterSharding, DistributedPubSubMediator, ShardRegion }
 import java.net.URLEncoder
 
 object FlowFacade {
@@ -48,7 +48,25 @@ object FlowFacade {
 
   private final val ReplicatorKey = "flows"
 
+  private final val TypeName = "flow"
+
   def props(mediator: ActorRef, replicator: ActorRef) = Props(new FlowFacade(mediator, replicator))
+
+  def startSharding(system: ActorSystem, mediator: ActorRef, shardCount: Int): Unit =
+    ClusterSharding(system).start(
+      TypeName,
+      Some(Flow.props(mediator)),
+      idExtractor,
+      shardResolver(shardCount)
+    )
+
+  private def idExtractor: ShardRegion.IdExtractor = {
+    case (name: String, payload) => (name, payload)
+  }
+
+  private def shardResolver(shardCount: Int): ShardRegion.ShardResolver = {
+    case (name: String, _) => (name.hashCode % shardCount).toString
+  }
 
   private def labelToName(label: String) = URLEncoder.encode(label.toLowerCase, "UTF-8")
 
@@ -61,6 +79,8 @@ class FlowFacade(mediator: ActorRef, replicator: ActorRef) extends Actor with Ac
   import FlowFacade._
 
   private implicit val cluster = Cluster(context.system)
+
+  private val shardRegion = flowShardRegion()
 
   private var flowInfoByName = Map.empty[String, FlowInfo]
 
@@ -75,16 +95,15 @@ class FlowFacade(mediator: ActorRef, replicator: ActorRef) extends Actor with Ac
     case Replicator.Changed(ReplicatorKey, data) => flowInfoByName = data.asInstanceOf[LWWMap[FlowInfo]].entries
   }
 
-  protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props(mediator), name)
+  protected def forwardToFlow(name: String)(message: Any): Unit = shardRegion.forward(name -> message)
 
-  protected def forwardToFlow(name: String)(message: Any): Unit = context.child(name).foreach(_.forward(message))
+  protected def flowShardRegion(): ActorRef = ClusterSharding(context.system).shardRegion(TypeName)
 
   private def addFlow(label: String) = {
     val name = labelToName(label)
     if (flowInfoByName.contains(name))
       sender() ! FlowExists(label)
     else {
-      createFlow(name)
       val flowInfo = FlowInfo(name, label)
       val flowAdded = FlowAdded(flowInfo)
       flowInfoByName += name -> flowInfo
@@ -95,7 +114,7 @@ class FlowFacade(mediator: ActorRef, replicator: ActorRef) extends Actor with Ac
   }
 
   private def removeFlow(name: String) = withKnownFlow(name) {
-    context.child(name).foreach(context.stop)
+    forwardToFlow(name)(Flow.Stop)
     flowInfoByName -= name
     replicator ! replicatorUpdate(_ - name)
     val flowRemoved = FlowRemoved(name)

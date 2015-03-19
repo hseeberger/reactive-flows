@@ -27,6 +27,10 @@ class Settings(system: ExtendedActorSystem) extends Extension {
     val bufferSize = reactiveFlows.getInt("flow-event-publisher.buffer-size")
   }
 
+  object flowFacade {
+    val shardCount = reactiveFlows.getInt("flow-facade.shard-count")
+  }
+
   object httpService {
     val flowFacadeTimeout = getDuration("http-service.flow-facade-timeout")
     val interface = reactiveFlows.getString("http-service.interface")

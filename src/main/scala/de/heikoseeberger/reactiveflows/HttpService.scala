@@ -17,7 +17,6 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Status }
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
 import akka.contrib.pattern.DistributedPubSubExtension
 import akka.http.Http
 import akka.http.model.StatusCodes
@@ -26,7 +25,7 @@ import akka.pattern.{ ask, pipe }
 import akka.stream.FlowMaterializer
 import akka.stream.scaladsl.{ ImplicitFlowMaterializer, Sink }
 import akka.stream.actor.ActorPublisher
-import akka.stream.scaladsl.{ Source, ImplicitFlowMaterializer }
+import akka.stream.scaladsl.{ ImplicitFlowMaterializer, Sink, Source }
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpjsonspray.SprayJsonMarshalling
 import de.heikoseeberger.akkasse.EventStreamMarshalling
