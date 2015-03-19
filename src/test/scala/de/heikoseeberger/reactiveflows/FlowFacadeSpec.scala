@@ -16,8 +16,8 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.ActorDSL.actor
-import akka.actor.ActorRef
+import akka.actor.ActorDSL.{ Act, actor }
+import akka.actor.{ ActorRef, Props }
 import akka.cluster.Cluster
 import akka.cluster.ddata.{ LWWMapKey, LWWMap, Replicator }
 import akka.cluster.pubsub.DistributedPubSubMediator
@@ -35,7 +35,9 @@ class FlowFacadeSpec extends BaseAkkaSpec {
     "correctly handle GetFlows, AddFlow and RemoveFlow commands" in {
       val mediator = TestProbe()
       val replicator = TestProbe()
-      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref, replicator.ref))
+      val flowFacade = actor(new FlowFacade(mediator.ref, replicator.ref) {
+        override protected def flowShardRegion() = context.actorOf(Props.empty)
+      })
 
       replicator.expectMsg(Replicator.Subscribe(LWWMapKey[FlowDescriptor]("flows"), flowFacade))
 
@@ -89,8 +91,11 @@ class FlowFacadeSpec extends BaseAkkaSpec {
         }
       })
       val flowFacade = actor(new FlowFacade(mediator.ref, replicator.ref) {
-        override protected def createFlow(name: String) = flow.ref
-        override protected def forwardToFlow(name: String)(message: Any) = flow.ref.forward(message)
+        override protected def flowShardRegion() = actor(context)(new Act {
+          become {
+            case (name: String, payload) => flow.ref.forward(payload)
+          }
+        })
       })
 
       val sender = TestProbe()

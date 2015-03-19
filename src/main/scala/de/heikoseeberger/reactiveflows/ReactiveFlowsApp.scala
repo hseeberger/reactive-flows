@@ -18,6 +18,7 @@ package de.heikoseeberger.reactiveflows
 
 import akka.actor.ActorSystem
 import akka.cluster.Cluster
+import akka.cluster.pubsub.DistributedPubSub
 import akka.event.Logging
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -31,6 +32,11 @@ object ReactiveFlowsApp {
 
     val system = ActorSystem("reactive-flows-system")
     Cluster(system).registerOnMemberUp {
+      FlowFacade.startSharding(
+        system,
+        DistributedPubSub(system).mediator,
+        Settings(system).flowFacade.shardCount
+      )
       system.actorOf(ReactiveFlows.props, ReactiveFlows.Name)
       Logging(system, getClass).info("Reactive Flows up and running")
     }

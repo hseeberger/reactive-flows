@@ -30,6 +30,8 @@ object Flow {
   case class AddMessage(text: String)
   case class MessageAdded(flowName: String, message: Message) extends MessageEvent
 
+  case object Stop
+
   final val MessageEventKey = "message-events"
 
   def props(mediator: ActorRef): Props = Props(new Flow(mediator))
@@ -43,6 +45,7 @@ class Flow(mediator: ActorRef) extends Actor {
   override def receive = {
     case GetMessages      => sender() ! messages
     case AddMessage(text) => addMessage(text)
+    case Stop             => context.stop(self)
   }
 
   private def addMessage(text: String) = {

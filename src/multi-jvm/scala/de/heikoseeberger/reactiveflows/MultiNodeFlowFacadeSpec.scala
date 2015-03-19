@@ -59,6 +59,7 @@ abstract class MultiNodeFlowFacadeSpec extends MultiNodeSpec(FlowFacadeSpecConfi
         }
       }
       val mediator = TestProbe()
+      FlowFacade.startSharding(system, mediator.ref, 20)
       enterBarrier("ready")
 
       runOn(node1) {
