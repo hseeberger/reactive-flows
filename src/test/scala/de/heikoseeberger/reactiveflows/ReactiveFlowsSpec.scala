@@ -37,7 +37,7 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       })
       val delegate = TestProbe()
       actor(new ReactiveFlows {
-        override protected def createFlowFacade(mediator: ActorRef) = flowFacade
+        override protected def createFlowFacade() = flowFacade
         override protected def createHttpService(flowFacade: ActorRef) = httpService
         override protected def onTerminated(actor: ActorRef) = delegate.ref ! "shutdown"
       })
