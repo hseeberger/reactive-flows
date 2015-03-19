@@ -17,6 +17,9 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.cluster.Cluster
+import akka.cluster.ddata.{ LWWMap, LWWMapKey, Replicator }
+import akka.cluster.pubsub.DistributedPubSubMediator
 import java.net.URLEncoder
 
 object FlowFacade {
@@ -41,22 +44,31 @@ object FlowFacade {
 
   final val FlowEventKey = "flow-events"
 
-  def props(mediator: ActorRef): Props = Props(new FlowFacade(mediator))
+  private val replicatorKey = LWWMapKey[FlowDescriptor]("flows")
+
+  private val replicatorUpdate = Replicator.Update(replicatorKey, LWWMap.empty[FlowDescriptor], Replicator.WriteLocal) _
+
+  def props(mediator: ActorRef, replicator: ActorRef): Props = Props(new FlowFacade(mediator, replicator))
 
   private def labelToName(label: String) = URLEncoder.encode(label.toLowerCase, "UTF-8")
 }
 
-class FlowFacade(mediator: ActorRef) extends Actor with ActorLogging {
+class FlowFacade(mediator: ActorRef, replicator: ActorRef) extends Actor with ActorLogging {
   import FlowFacade._
+
+  private implicit val cluster = Cluster(context.system)
 
   private var flowDescriptorByName = Map.empty[String, FlowDescriptor]
 
+  replicator ! Replicator.Subscribe(replicatorKey, self)
+
   override def receive = {
-    case GetFlows                   => sender() ! flowDescriptorByName.valuesIterator.toSet
-    case AddFlow(label)             => addFlow(label)
-    case RemoveFlow(name)           => removeFlow(name)
-    case GetMessages(flowName)      => getMessages(flowName)
-    case AddMessage(flowName, text) => addMessage(flowName, text)
+    case GetFlows                                      => sender() ! flowDescriptorByName.valuesIterator.toSet
+    case AddFlow(label)                                => addFlow(label)
+    case RemoveFlow(name)                              => removeFlow(name)
+    case GetMessages(flowName)                         => getMessages(flowName)
+    case AddMessage(flowName, text)                    => addMessage(flowName, text)
+    case changed @ Replicator.Changed(`replicatorKey`) => flowDescriptorByName = changed.get(replicatorKey).entries
   }
 
   protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props(mediator), name)
@@ -68,15 +80,17 @@ class FlowFacade(mediator: ActorRef) extends Actor with ActorLogging {
     val flowDescriptor = FlowDescriptor(name, label)
     val flowAdded = FlowAdded(flowDescriptor)
     flowDescriptorByName += name -> flowDescriptor
-    mediator ! PubSubMediator.Publish(FlowEventKey, flowAdded)
+    mediator ! DistributedPubSubMediator.Publish(FlowEventKey, flowAdded)
+    replicator ! replicatorUpdate(_ + (name -> flowDescriptor))
     sender() ! flowAdded
   }
 
   private def removeFlow(name: String) = withExistingFlow(name) { name =>
     context.child(name).foreach(context.stop)
     flowDescriptorByName -= name
+    replicator ! replicatorUpdate(_ - name)
     val flowRemoved = FlowRemoved(name)
-    mediator ! PubSubMediator.Publish(FlowEventKey, flowRemoved)
+    mediator ! DistributedPubSubMediator.Publish(FlowEventKey, flowRemoved)
     sender() ! flowRemoved
   }
 

@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.ActorSystem
+import akka.cluster.Cluster
 import akka.event.Logging
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -29,8 +30,10 @@ object ReactiveFlowsApp {
     for (jvmArg(name, value) <- args) System.setProperty(name, value)
 
     val system = ActorSystem("reactive-flows-system")
-    system.actorOf(ReactiveFlows.props, ReactiveFlows.Name)
-    Logging(system, getClass).info("Reactive Flows up and running")
+    Cluster(system).registerOnMemberUp {
+      system.actorOf(ReactiveFlows.props, ReactiveFlows.Name)
+      Logging(system, getClass).info("Reactive Flows up and running")
+    }
 
     Await.ready(system.whenTerminated, Duration.Inf)
   }
