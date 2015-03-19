@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.ActorSystem
+import akka.contrib.pattern.DistributedPubSubExtension
 import akka.event.Logging
 
 object ReactiveFlowsApp {
@@ -27,6 +28,11 @@ object ReactiveFlowsApp {
     for (opt(key, value) <- args) System.setProperty(key, value)
 
     val system = ActorSystem("reactive-flows-system")
+    FlowFacade.startSharding(
+      system,
+      DistributedPubSubExtension(system).mediator,
+      Settings(system).flowFacade.shardCount
+    )
     system.actorOf(ReactiveFlows.props, ReactiveFlows.Name)
 
     Logging(system, getClass).info("Reactive Flows up and running")
