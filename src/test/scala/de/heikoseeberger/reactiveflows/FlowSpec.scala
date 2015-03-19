@@ -16,6 +16,7 @@
 
 package de.heikoseeberger.reactiveflows
 
+import akka.contrib.pattern.DistributedPubSubMediator
 import akka.testkit.TestProbe
 
 class FlowSpec extends BaseAkkaSpec {
@@ -37,7 +38,7 @@ class FlowSpec extends BaseAkkaSpec {
 
       flow ! AddMessage("Akka rocks!")
       val dateTime = sender.expectMsgPF() { case MessageAdded(`flowName`, Message("Akka rocks!", dt)) => dt }
-      mediator.expectMsg(PubSubMediator.Publish(
+      mediator.expectMsg(DistributedPubSubMediator.Publish(
         Flow.MessageEventKey,
         MessageAdded(`flowName`, Message("Akka rocks!", dateTime))
       ))

@@ -16,6 +16,7 @@
 
 package de.heikoseeberger.reactiveflows
 
+import akka.contrib.pattern.DistributedPubSubMediator
 import akka.stream.ActorFlowMaterializer
 import akka.stream.actor.ActorPublisher
 import akka.stream.scaladsl.{ Sink, Source }
@@ -34,7 +35,7 @@ class MessageEventPublisherSpec extends BaseAkkaSpec {
     "subscribe to message events and publish those" in {
       val mediator = TestProbe()
       val messageEventPublisher = system.actorOf(MessageEventPublisher.props(mediator.ref, 10))
-      mediator.expectMsg(PubSubMediator.Subscribe(Flow.MessageEventKey, messageEventPublisher))
+      mediator.expectMsg(DistributedPubSubMediator.Subscribe(Flow.MessageEventKey, messageEventPublisher))
 
       val messageEvent = Source(ActorPublisher[ServerSentEvent](messageEventPublisher)).runWith(Sink.head)
       messageEventPublisher ! Flow.MessageAdded("akka", Flow.Message("Akka rocks!", LocalDateTime.now()))

@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ ActorLogging, ActorRef, Props }
+import akka.contrib.pattern.DistributedPubSubMediator
 import de.heikoseeberger.akkasse.EventPublisher
 import de.heikoseeberger.reactiveflows.ServerSentEventProtocol.messageEventToServerSentEvent
 
@@ -27,7 +28,7 @@ object MessageEventPublisher {
 class MessageEventPublisher(mediator: ActorRef, bufferSize: Int)
     extends EventPublisher[Flow.MessageEvent](bufferSize) with ActorLogging {
 
-  mediator ! PubSubMediator.Subscribe(Flow.MessageEventKey, self)
+  mediator ! DistributedPubSubMediator.Subscribe(Flow.MessageEventKey, self)
   log.debug("Subscribed to message events")
 
   override protected def receiveEvent = {

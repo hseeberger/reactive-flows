@@ -18,6 +18,9 @@ package de.heikoseeberger.reactiveflows
 
 import akka.actor.ActorDSL.actor
 import akka.actor.ActorRef
+import akka.cluster.Cluster
+import akka.contrib.datareplication.{ LWWMap, Replicator }
+import akka.contrib.pattern.DistributedPubSubMediator
 import akka.testkit.{ TestActor, TestProbe }
 import java.time.LocalDateTime
 
@@ -25,13 +28,18 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
   import FlowFacade._
 
+  implicit val cluster = Cluster(system)
+
   val now = LocalDateTime.now()
 
   "FlowFacade" should {
 
     "correctly handle GetFlows, AddFlow and RemoveFlow commands" in {
       val mediator = TestProbe()
-      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref))
+      val replicator = TestProbe()
+      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref, replicator.ref))
+
+      replicator.expectMsg(Replicator.Subscribe("flows", flowFacade))
 
       val sender = TestProbe()
       implicit val senderRef = sender.ref
@@ -41,14 +49,20 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowInfo("akka", "Akka")))
-      mediator.expectMsg(PubSubMediator.Publish(FlowFacade.FlowEventKey, FlowAdded(FlowInfo("akka", "Akka"))))
+      mediator.expectMsg(DistributedPubSubMediator.Publish(FlowFacade.FlowEventKey, FlowAdded(FlowInfo("akka", "Akka"))))
+      replicator.expectMsgPF() {
+        case update: Replicator.Update[LWWMap[FlowInfo]] @unchecked if update.modify(Some(LWWMap.empty[FlowInfo])).entries == Map("akka" -> FlowInfo("akka", "Akka")) => ()
+      }
 
       flowFacade ! GetFlows
       sender.expectMsg(Set(FlowInfo("akka", "Akka")))
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowRemoved("akka"))
-      mediator.expectMsg(PubSubMediator.Publish(FlowFacade.FlowEventKey, FlowRemoved("akka")))
+      mediator.expectMsg(DistributedPubSubMediator.Publish(FlowFacade.FlowEventKey, FlowRemoved("akka")))
+      replicator.expectMsgPF() {
+        case update: Replicator.Update[LWWMap[FlowInfo]] @unchecked if update.modify(Some(LWWMap.empty[FlowInfo] + ("akka" -> FlowInfo("akka", "Akka")))).entries == Map.empty => ()
+      }
 
       flowFacade ! GetFlows
       sender.expectMsg(Set.empty)
@@ -56,6 +70,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
     "correctly handle GetMessages and AddMessage commands" in {
       val mediator = TestProbe()
+      val replicator = TestProbe()
       val flow = TestProbe()
       flow.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any) = {
@@ -69,7 +84,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
           }
         }
       })
-      val flowFacade = actor(new FlowFacade(mediator.ref) {
+      val flowFacade = actor(new FlowFacade(mediator.ref, replicator.ref) {
         override protected def createFlow(name: String) = flow.ref
         override protected def forwardToFlow(name: String)(message: Any) = flow.ref.forward(message)
       })
