@@ -17,6 +17,8 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated }
+import akka.contrib.datareplication.DataReplication
+import akka.contrib.pattern.DistributedPubSubExtension
 
 object ReactiveFlows {
 
@@ -29,9 +31,7 @@ class ReactiveFlows extends Actor with ActorLogging with SettingsActor {
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
-  private val mediator = context.watch(createMediator())
-
-  private val flowFacade = context.watch(createFlowFacade(mediator))
+  private val flowFacade = context.watch(createFlowFacade())
 
   context.watch(createHttpService(flowFacade))
 
@@ -39,10 +39,10 @@ class ReactiveFlows extends Actor with ActorLogging with SettingsActor {
     case Terminated(actor) => shutdown(actor)
   }
 
-  protected def createMediator(): ActorRef = context.actorOf(PubSubMediator.props, PubSubMediator.Name)
-
-  protected def createFlowFacade(mediator: ActorRef): ActorRef =
-    context.actorOf(FlowFacade.props(mediator), FlowFacade.Name)
+  protected def createFlowFacade(): ActorRef = context.actorOf(
+    FlowFacade.props(DistributedPubSubExtension(context.system).mediator, DataReplication(context.system).replicator),
+    FlowFacade.Name
+  )
 
   protected def createHttpService(flowFacade: ActorRef): ActorRef = context.actorOf(
     HttpService.props(
@@ -51,7 +51,7 @@ class ReactiveFlows extends Actor with ActorLogging with SettingsActor {
       settings.httpService.selfTimeout,
       flowFacade,
       settings.httpService.flowFacadeTimeout,
-      mediator
+      DistributedPubSubExtension(context.system).mediator
     ),
     HttpService.Name
   )
