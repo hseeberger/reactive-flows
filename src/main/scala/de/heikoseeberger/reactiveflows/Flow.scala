@@ -16,8 +16,9 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ ActorRef, Actor, Props }
+import akka.actor.{ ActorRef, Props }
 import akka.contrib.pattern.DistributedPubSubMediator
+import akka.persistence.PersistentActor
 import java.time.LocalDateTime
 
 object Flow {
@@ -38,23 +39,33 @@ object Flow {
   def props(mediator: ActorRef) = Props(new Flow(mediator))
 }
 
-class Flow(mediator: ActorRef) extends Actor {
+class Flow(mediator: ActorRef) extends PersistentActor {
 
   import Flow._
 
+  private val name = self.path.name
+
   private var messages = List.empty[Message]
 
-  override def receive = {
+  override def persistenceId = s"flow-$name"
+
+  override def receiveCommand = {
     case GetMessages      => sender() ! messages
     case AddMessage(text) => addMessage(text)
     case Stop             => context.stop(self)
   }
 
-  private def addMessage(text: String) = {
-    val message = Message(text, LocalDateTime.now())
-    messages +:= message
-    val messageAdded = MessageAdded(self.path.name, message)
+  override def receiveRecover = {
+    case messageAdded: MessageAdded => updateState(messageAdded)
+  }
+
+  private def addMessage(text: String) = persist(MessageAdded(name, Message(text, LocalDateTime.now()))) { messageAdded =>
+    updateState(messageAdded)
     mediator ! DistributedPubSubMediator.Publish(MessageEventKey, messageAdded)
     sender() ! messageAdded
+  }
+
+  private def updateState(event: MessageEvent) = event match {
+    case MessageAdded(flowName, message) => messages +:= message
   }
 }
