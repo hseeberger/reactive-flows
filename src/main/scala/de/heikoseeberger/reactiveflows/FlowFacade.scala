@@ -70,7 +70,7 @@ object FlowFacade {
 
   private def labelToName(label: String) = URLEncoder.encode(label.toLowerCase, "UTF-8")
 
-  private def replicatorUpdate =
+  private val replicatorUpdate =
     Replicator.Update(ReplicatorKey, LWWMap.empty[FlowInfo], Replicator.ReadLocal, Replicator.WriteLocal) _
 }
 

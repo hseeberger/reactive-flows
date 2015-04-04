@@ -27,6 +27,7 @@ object Reaper {
   def props = Props(new Reaper)
 }
 
+// suggestion: rename to AppSupervisor or similar, since that is what it does
 class Reaper extends Actor with ActorLogging with SettingsActor {
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy

@@ -153,6 +153,7 @@ class HttpService(interface: String, port: Int, selfTimeout: Timeout, flowFacade
     .bindAndHandle(route(self, selfTimeout, flowFacade, flowFacadeTimeout), interface, port)
     .pipeTo(self)
 
+  // collapse these two as well
   protected def createFlowEventSource(): Source[FlowFacade.FlowEvent, Unit] = Source(
     ActorPublisher[FlowFacade.FlowEvent](context.actorOf(FlowEventPublisher.props(
       DistributedPubSubExtension(context.system).mediator,
