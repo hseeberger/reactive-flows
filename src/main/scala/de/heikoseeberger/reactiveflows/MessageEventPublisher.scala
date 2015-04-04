@@ -24,6 +24,7 @@ object MessageEventPublisher {
   def props(mediator: ActorRef, bufferSize: Int) = Props(new MessageEventPublisher(mediator, bufferSize))
 }
 
+// TODO: collapse with FlowEventPublisher
 class MessageEventPublisher(mediator: ActorRef, bufferSize: Int)
     extends EventPublisher[Flow.MessageEvent](bufferSize) with ActorLogging {
 

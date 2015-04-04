@@ -30,6 +30,7 @@ import akka.util.Timeout
 import de.heikoseeberger.akkahttpjsonspray.SprayJsonMarshalling
 import de.heikoseeberger.akkasse.EventStreamMarshalling
 import scala.concurrent.ExecutionContext
+import scala.util.{ Success, Failure }
 
 object HttpService {
 
@@ -74,25 +75,25 @@ object HttpService {
       implicit val timeout = flowFacadeTimeout
       path(Segment / "messages") { flowName =>
         get {
-          onSuccess(flowFacade ? GetMessages(flowName)) {
-            case messages: Seq[Flow.Message] @unchecked => complete(messages)
-            case unknownFlow: UnknownFlow               => complete(StatusCodes.NotFound)
+          onComplete((flowFacade ? GetMessages(flowName)).mapTo[Seq[Flow.Message]]) {
+            case Success(messages)       => complete(messages)
+            case Failure(_: UnknownFlow) => complete(StatusCodes.NotFound)
           }
         } ~
         post {
           entity(as[AddMessageRequest]) { case AddMessageRequest(text) =>
-            onSuccess(flowFacade ? AddMessage(flowName, text)) {
-              case messageAdded: Flow.MessageAdded => complete(messageAdded)
-              case unknownFlow: UnknownFlow        => complete(StatusCodes.NotFound)
+            onComplete((flowFacade ? AddMessage(flowName, text)).mapTo[Flow.MessageAdded]) {
+              case Success(messageAdded)   => complete(messageAdded)
+              case Failure(_: UnknownFlow) => complete(StatusCodes.NotFound)
             }
           }
         }
       } ~
       path(Segment) { flowName =>
         delete {
-          onSuccess(flowFacade ? RemoveFlow(flowName)) {
-            case flowRemoved: FlowRemoved => complete(StatusCodes.NoContent)
-            case unknownFlow: UnknownFlow => complete(StatusCodes.NotFound)
+          onComplete((flowFacade ? RemoveFlow(flowName)).mapTo[FlowRemoved]) {
+            case Success(_)              => complete(StatusCodes.NoContent)
+            case Failure(_: UnknownFlow) => complete(StatusCodes.NotFound)
           }
         }
       } ~
@@ -101,9 +102,9 @@ object HttpService {
       } ~
       post {
         entity(as[AddFlowRequest]) { addFlowRequest =>
-          onSuccess(flowFacade ? AddFlow(addFlowRequest.label)) {
-            case flowAdded: FlowAdded   => complete(StatusCodes.Created -> flowAdded)
-            case flowExists: FlowExists => complete(StatusCodes.Conflict -> flowExists)
+          onComplete((flowFacade ? AddFlow(addFlowRequest.label)).mapTo[FlowAdded]) {
+            case Success(flowAdded)     => complete(StatusCodes.Created -> flowAdded)
+            case Failure(f: FlowExists) => complete(StatusCodes.Conflict -> f)
           }
         }
       }
@@ -152,6 +153,7 @@ class HttpService(interface: String, port: Int, selfTimeout: Timeout, flowFacade
     .bindAndHandle(route(self, selfTimeout, flowFacade, flowFacadeTimeout), interface, port)
     .pipeTo(self)
 
+  // collapse these two as well
   protected def createFlowEventSource(): Source[FlowFacade.FlowEvent, Unit] = Source(
     ActorPublisher[FlowFacade.FlowEvent](context.actorOf(FlowEventPublisher.props(
       DistributedPubSubExtension(context.system).mediator,
