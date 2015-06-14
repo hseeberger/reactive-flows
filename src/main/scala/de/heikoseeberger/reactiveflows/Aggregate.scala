@@ -16,10 +16,10 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ ActorRef, ActorSystem }
 
 trait Aggregate
 
 trait AggregateLoader {
-  def load(system: ActorSystem, mediator: ActorRef, shardCount: Int) : Unit
+  def load(system: ActorSystem, mediator: ActorRef, shardCount: Int): Unit
 }
