@@ -16,25 +16,27 @@
 
 package de.heikoseeberger.reactiveflows
 
+import java.util.ServiceLoader
+
 import akka.actor.ActorSystem
 import akka.cluster.Cluster
 import akka.contrib.pattern.DistributedPubSubExtension
 import akka.event.Logging
+import scala.collection.JavaConversions._
 
-object ReactiveFlowsApp {
+object ReactiveFlowsApp extends App {
 
   private val jvmArg = """-D(\S+)=(\S+)""".r
 
-  def main(args: Array[String]): Unit = {
+  override def main(args: Array[String]): Unit = {
     for (jvmArg(name, value) <- args) System.setProperty(name, value)
 
     val system = ActorSystem("reactive-flows-system")
     Cluster(system).registerOnMemberUp {
-      FlowFacade.startSharding(
-        system,
-        DistributedPubSubExtension(system).mediator,
-        Settings(system).flowFacade.shardCount
-      )
+      val l: ServiceLoader[AggregateLoader] = ServiceLoader.load(classOf[AggregateLoader])
+      l.foreach {
+        _.load(system, DistributedPubSubExtension(system).mediator, Settings(system).flowFacade.shardCount)
+      }
       system.actorOf(ReactiveFlows.props, ReactiveFlows.Name)
       Logging(system, getClass).info("Reactive Flows up and running")
     }
