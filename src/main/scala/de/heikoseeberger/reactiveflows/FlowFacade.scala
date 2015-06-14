@@ -23,6 +23,9 @@ import akka.contrib.pattern.{ ClusterSharding, DistributedPubSubMediator, ShardR
 import java.net.URLEncoder
 
 object FlowFacade {
+  class Loader() extends AggregateLoader {
+    override def load(system: ActorSystem, mediator: ActorRef, shardCount: Int): Unit = FlowFacade.startSharding (system, mediator, shardCount)
+  }
 
   case object GetFlows
 
