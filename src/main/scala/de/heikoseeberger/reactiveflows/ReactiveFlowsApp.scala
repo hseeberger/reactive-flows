@@ -16,24 +16,16 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorRef, Props }
-import de.heikoseeberger.akkamacrologging.ActorLogging
+import akka.actor.ActorSystem
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
-object ReactiveFlows {
+object ReactiveFlowsApp {
 
-  // $COVERAGE-OFF$
-  final val Name = "reactive-flows"
-  // $COVERAGE-ON$
+  def main(args: Array[String]): Unit = {
+    val system = ActorSystem("reactive-flows-system")
+    system.actorOf(ReactiveFlows.props, ReactiveFlows.Name)
 
-  def props: Props = Props(new ReactiveFlows)
-}
-
-class ReactiveFlows extends Actor with ActorLogging {
-
-  createFlowFacade()
-  log.info("Up and running")
-
-  override def receive = Actor.emptyBehavior
-
-  protected def createFlowFacade(): ActorRef = context.actorOf(FlowFacade.props, FlowFacade.Name)
+    Await.ready(system.whenTerminated, Duration.Inf)
+  }
 }
