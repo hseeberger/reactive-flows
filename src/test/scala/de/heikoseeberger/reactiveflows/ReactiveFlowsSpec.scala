@@ -16,8 +16,8 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.Props
-import akka.testkit.EventFilter
+import akka.actor.{ ActorIdentity, Identify, Props }
+import akka.testkit.{ EventFilter, TestProbe }
 
 class ReactiveFlowsSpec extends BaseAkkaSpec {
 
@@ -25,6 +25,17 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
     """result in logging "Up and running" at INFO level""" in {
       EventFilter.info(occurrences = 1, message = "Up and running").intercept {
         system.actorOf(Props(new ReactiveFlows))
+      }
+    }
+
+    "result in creating a FlowFacade child actor" in {
+      val sender = TestProbe()
+      implicit val senderRef = sender.ref
+
+      val reactiveFlows = system.actorOf(ReactiveFlows.props)
+      sender.awaitAssert {
+        system.actorSelection(reactiveFlows.path / FlowFacade.Name) ! Identify(None)
+        sender.expectMsgPF() { case ActorIdentity(_, Some(_)) => () }
       }
     }
   }
