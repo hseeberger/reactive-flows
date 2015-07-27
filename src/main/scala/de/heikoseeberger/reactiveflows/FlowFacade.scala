@@ -16,24 +16,17 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorRef, Props }
-import de.heikoseeberger.akkamacrologging.ActorLogging
+import akka.actor.{ Actor, Props }
 
-object ReactiveFlows {
+object FlowFacade {
 
   // $COVERAGE-OFF$
-  final val Name = "reactive-flows"
+  final val Name = "flow-facade"
   // $COVERAGE-ON$
 
-  def props: Props = Props(new ReactiveFlows)
+  def props: Props = Props(new FlowFacade)
 }
 
-class ReactiveFlows extends Actor with ActorLogging {
-
-  createFlowFacade()
-  log.info("Up and running")
-
+class FlowFacade extends Actor {
   override def receive = Actor.emptyBehavior
-
-  protected def createFlowFacade(): ActorRef = context.actorOf(FlowFacade.props, FlowFacade.Name)
 }
