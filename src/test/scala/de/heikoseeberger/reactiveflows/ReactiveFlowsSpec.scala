@@ -16,23 +16,15 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{ ActorIdentity, Identify, Props }
+import akka.testkit.{ EventFilter, TestProbe }
 
-object ReactiveFlows {
+class ReactiveFlowsSpec extends BaseAkkaSpec {
 
-  // $COVERAGE-OFF$
-  final val Name = "reactive-flows"
-  // $COVERAGE-ON$
-
-  def props: Props = Props(new ReactiveFlows)
-}
-
-class ReactiveFlows extends Actor with ActorLogging {
-
-  createFlowFacade()
-  log.info("Up and running")
-
-  override def receive = Actor.emptyBehavior
-
-  protected def createFlowFacade(): ActorRef = context.actorOf(FlowFacade.props, FlowFacade.Name)
+  "Creating a ReactiveFlows actor" should {
+    "result in creating a FlowFacade child actor" in {
+      val reactiveFlows = system.actorOf(ReactiveFlows.props)
+      TestProbe().expectActor(reactiveFlows.path / FlowFacade.Name)
+    }
+  }
 }
