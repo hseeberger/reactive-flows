@@ -43,8 +43,9 @@ headers := Map("scala" -> de.heikoseeberger.sbtheader.license.Apache2_0("2015", 
 test.in(Test)         := { scalastyle.in(Compile).toTask("").value; test.in(Test).value }
 scalastyleFailOnError := true
 
-coverageMinimum       := 100
-coverageFailOnMinimum := true
+coverageMinimum          := 100
+coverageFailOnMinimum    := true
+coverageExcludedPackages := ".*ReactiveFlowsApp"
 
 maintainer.in(Docker) := "Heiko Seeberger"
 daemonUser.in(Docker) := "root"
