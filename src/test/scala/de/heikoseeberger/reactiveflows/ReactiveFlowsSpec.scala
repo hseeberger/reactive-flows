@@ -16,8 +16,8 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.Props
-import akka.testkit.EventFilter
+import akka.actor.{ ActorIdentity, Identify, Props }
+import akka.testkit.{ EventFilter, TestProbe }
 
 class ReactiveFlowsSpec extends BaseAkkaSpec {
 
@@ -26,6 +26,11 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       EventFilter.info(occurrences = 1, message = "Up and running").intercept {
         system.actorOf(Props(new ReactiveFlows))
       }
+    }
+
+    "result in creating a FlowFacade child actor" in {
+      val reactiveFlows = system.actorOf(ReactiveFlows.props)
+      TestProbe().expectActor(reactiveFlows.path / FlowFacade.Name)
     }
   }
 }
