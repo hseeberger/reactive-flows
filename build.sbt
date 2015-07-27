@@ -15,3 +15,5 @@ libraryDependencies ++= Vector(
 
 initialCommands := """|import de.heikoseeberger.reactiveflows._
                       |""".stripMargin
+
+coverageExcludedPackages := ".*ReactiveFlowsApp"
