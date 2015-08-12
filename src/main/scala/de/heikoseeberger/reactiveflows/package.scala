@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Heiko Seeberger
+ * Copyright 2015 Heiko Seeberger
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package de.heikoseeberger
 
 package object reactiveflows {
 
+  // $COVERAGE-OFF$
   val Traversable = scala.collection.immutable.Traversable
   type Traversable[+A] = scala.collection.immutable.Traversable[A]
 
@@ -29,4 +30,5 @@ package object reactiveflows {
 
   val IndexedSeq = scala.collection.immutable.IndexedSeq
   type IndexedSeq[+A] = scala.collection.immutable.IndexedSeq[A]
+  // $COVERAGE-ON$
 }
