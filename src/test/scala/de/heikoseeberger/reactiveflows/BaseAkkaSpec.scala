@@ -14,21 +14,19 @@
  * limitations under the License.
  */
 
-package de.heikoseeberger
+package de.heikoseeberger.reactiveflows
 
-package object reactiveflows {
+import akka.actor.ActorSystem
+import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec }
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
-  // $COVERAGE-OFF$
-  val Traversable = scala.collection.immutable.Traversable
-  type Traversable[+A] = scala.collection.immutable.Traversable[A]
+abstract class BaseAkkaSpec extends WordSpec with Matchers with BeforeAndAfterAll {
 
-  val Iterable = scala.collection.immutable.Iterable
-  type Iterable[+A] = scala.collection.immutable.Iterable[A]
+  implicit protected val system = ActorSystem("reactive-flows-system")
 
-  val Seq = scala.collection.immutable.Seq
-  type Seq[+A] = scala.collection.immutable.Seq[A]
-
-  val IndexedSeq = scala.collection.immutable.IndexedSeq
-  type IndexedSeq[+A] = scala.collection.immutable.IndexedSeq[A]
-  // $COVERAGE-ON$
+  override protected def afterAll() = {
+    Await.ready(system.terminate(), Duration.Inf)
+    super.afterAll()
+  }
 }
