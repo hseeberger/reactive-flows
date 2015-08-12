@@ -1,6 +1,6 @@
 val reactiveFlows = project
   .in(file("."))
-  .enablePlugins(AutomateHeaderPlugin, GitVersioning)
+  .enablePlugins(AutomateHeaderPlugin, GitVersioning, JavaAppPackaging, DockerPlugin)
 
 organization := "de.heikoseeberger"
 name         := "reactive-flows"
@@ -18,14 +18,19 @@ scalacOptions ++= List(
 unmanagedSourceDirectories.in(Compile) := List(scalaSource.in(Compile).value)
 unmanagedSourceDirectories.in(Test)    := List(scalaSource.in(Test).value)
 
+val akkaVersion       = "2.4.1"
 libraryDependencies ++= List(
-  "org.scalacheck" %% "scalacheck" % "1.12.5" % "test",
-  "org.scalatest"  %% "scalatest"  % "2.2.5"  % "test"
+  "com.typesafe.akka"        %% "akka-actor"         % akkaVersion,
+  "de.heikoseeberger"        %% "akka-log4j"         % "1.0.3",
+  "de.heikoseeberger"        %% "akka-macro-logging" % "0.1.0",
+  "org.apache.logging.log4j" %  "log4j-core"         % "2.5",
+  "com.typesafe.akka"        %% "akka-testkit"       % akkaVersion % "test",
+  "org.scalatest"            %% "scalatest"          % "2.2.5"     % "test"
 )
 
 initialCommands := """|import de.heikoseeberger.reactiveflows._""".stripMargin
 
-git.baseVersion := "0.1.0"
+git.useGitDescribe := true
 
 import scalariform.formatter.preferences._
 preferences := preferences.value
@@ -34,3 +39,14 @@ preferences := preferences.value
   .setPreference(DoubleIndentClassDeclaration, true)
 
 headers := Map("scala" -> de.heikoseeberger.sbtheader.license.Apache2_0("2015", "Heiko Seeberger"))
+
+test.in(Test)         := { scalastyle.in(Compile).toTask("").value; test.in(Test).value }
+scalastyleFailOnError := true
+
+coverageMinimum       := 100
+coverageFailOnMinimum := true
+
+maintainer in Docker := "Heiko Seeberger"
+daemonUser in Docker := "root"
+dockerBaseImage      := "java:8"
+dockerRepository     := Some("hseeberger")
