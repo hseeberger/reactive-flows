@@ -1,6 +1,41 @@
-# reactive-flows #
+# Reactive Flows #
 
-Welcome to reactive-flows!
+Reactive Flows is a demo project showing a Reactive web app built with:
+
+- Akka Actors
+- Akka HTTP
+- Akka SSE (Server-Sent Events)
+- Akka Distributed Data
+- Akka Cluster Sharding
+- Akka Persistence
+- AngularJS
+- Scala
+
+## Usage
+
+- Important: Reactive Flows makes use of [advanced JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find) which isn't yet available for older browsers, so make sure to use Firefox > 25.0, Safari > 7.1 or Chrome > 45.0
+- To run the first node, execute `rf1` in an sbt session; you can shutdown the app with `reStop`
+- To run further nodes, execute `sbt rf2` or `sbt rf3` from the command line; stop the app with `CTRL+C`
+- As the names and labels of the flows aren't persisted, you have to create them after the app has started; see below examples
+- Important: Reactive Flows uses the [Cassandra Plugin](https://github.com/krasserm/akka-persistence-cassandra) for the Akka Persistence journal; make sure Cassandra is started and available under the configured contact point, e.g. via `docker run -d --name cassandra -p 9042:9042 cassandra:2.1`
+
+## REST API Examples ##
+
+```
+curl -i 127.0.0.1:8001/flows
+curl -i -H 'Content-Type: application/json' -d '{ "label": "Akka" }' 127.0.0.1:8001/flows
+curl -i -H 'Content-Type: application/json' -d '{ "label": "AngularJS" }' 127.0.0.1:8001/flows
+curl -i -H 'Content-Type: application/json' -d '{ "text": "Akka rocks!" }' 127.0.0.1:8001/flows/akka/messages
+curl -i 127.0.0.1:8001/flows/akka/messages
+
+curl -N 127.0.0.1:8001/messages
+curl -i -H 'Content-Type: application/json' -d '{ "text": "Akka and AngularJS are a great combination!" }' 127.0.0.1:8001/flows/akka/messages
+curl -i -H 'Content-Type: application/json' -d '{ "text": "AngularJS rocks!" }' 127.0.0.1:8001/flows/angularjs/messages
+
+curl -i -X DELETE 127.0.0.1:8001/flows/akka
+
+curl -X DELETE 127.0.0.1:8001
+```
 
 ## Contribution policy ##
 
