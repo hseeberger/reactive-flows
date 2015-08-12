@@ -18,6 +18,7 @@ package de.heikoseeberger
 
 package object reactiveflows {
 
+  // $COVERAGE-OFF$
   val Traversable = scala.collection.immutable.Traversable
   type Traversable[+A] = scala.collection.immutable.Traversable[A]
 
@@ -29,4 +30,5 @@ package object reactiveflows {
 
   val IndexedSeq = scala.collection.immutable.IndexedSeq
   type IndexedSeq[+A] = scala.collection.immutable.IndexedSeq[A]
+  // $COVERAGE-ON$
 }
