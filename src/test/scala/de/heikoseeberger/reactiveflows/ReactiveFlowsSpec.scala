@@ -16,15 +16,30 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ ActorIdentity, Identify, Props }
+import akka.actor.{ ActorDSL, ActorIdentity, ActorRef, Identify, Props }
 import akka.testkit.{ EventFilter, TestProbe }
 
 class ReactiveFlowsSpec extends BaseAkkaSpec {
+  import ActorDSL._
 
   "Creating a ReactiveFlows actor" should {
     "result in creating a FlowFacade child actor" in {
       val reactiveFlows = system.actorOf(ReactiveFlows.props)
       TestProbe().expectActor(reactiveFlows.path / FlowFacade.Name)
+    }
+  }
+
+  "ReactiveFlows" should {
+    "terminate the system upon termination of a child actor" in {
+      val probe = TestProbe()
+      actor(new ReactiveFlows {
+        override protected def createFlowFacade() = actor(context)(new Act {
+          context.stop(self)
+        })
+        override protected def onTerminated(actor: ActorRef) = probe.ref ! "terminated"
+      })
+
+      probe.expectMsg("terminated")
     }
   }
 }
