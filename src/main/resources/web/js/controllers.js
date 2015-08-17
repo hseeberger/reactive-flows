@@ -1,21 +1,18 @@
-var reactiveFlowsControllers = angular.module('reactiveFlowsControllers', []);
+var reactiveFlowsControllers = angular.module('reactiveFlowsControllers', ['reactiveFlowsServices']);
 
-reactiveFlowsControllers.controller('HomeCtrl', ['$scope', function($scope) {
+reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Message', function($scope, Flow, Message) {
 
-    $scope.flows = [
-        {name: 'akka', label: 'Akka'},
-        {name: 'angularjs', label: 'AngularJS'}
-    ];
+    $scope.flows = [];
 
-    $scope.currentFlowName = 'akka';
+    $scope.currentFlowName = null;
 
-    $scope.currentFlowLabel = 'Akka';
+    $scope.currentFlowLabel = null;
 
-    $scope.messages = [
-        {text: 'Akka rocks!', dateTime: '2015-04-14 19:20:21'}
-    ];
+    $scope.messages = [];
 
-    $scope.shouldShowForm = true;
+    $scope.shouldShowForm = false;
+
+    $scope.message = new Message({'text': ''});
 
     $scope.flowBtnClass = function(name) {
         return ($scope.currentFlowName == name) ? 'btn-primary' : 'btn-info';
@@ -24,11 +21,29 @@ reactiveFlowsControllers.controller('HomeCtrl', ['$scope', function($scope) {
     $scope.switchCurrentFlow = function(name) {
         if ($scope.currentFlowName != name) {
             console.log('Switching to flow ' + name);
-            alert('TODO: Missing implementation!');
+            $scope.currentFlowName = name;
+            $scope.currentFlowLabel = $scope.flows.find(function(flow) {
+                return flow.name == name;
+            }).label;
+            $scope.shouldShowForm = true;
+            var messages = Message.query({'flowName': name}, function() {
+                console.log('Received ' + messages.length + ' messages for flow ' + name);
+                $scope.messages = messages;
+            });
         }
     };
 
     $scope.sendMessage = function() {
-        alert('TODO: Missing implementation!');
+        $scope.message.$save({'flowName': $scope.currentFlowName});
+        $scope.message = new Message({'text': ''});
     };
+
+    // Initialize flows
+    var flows = Flow.query(function() {
+        console.log('Received ' + flows.length + ' flows from server');
+        if (flows.length > 0) {
+            $scope.flows = flows;
+            $scope.switchCurrentFlow(flows[0].name);
+        }
+    });
 }]);
