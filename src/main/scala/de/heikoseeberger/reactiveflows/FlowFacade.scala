@@ -70,6 +70,7 @@ class FlowFacade extends Actor {
 
   private def removeFlow(name: String) = withExistingFlow(name) { name =>
     flowsByName -= name
+    context.child(name).foreach(context.stop)
     sender() ! FlowRemoved(name)
   }
 
