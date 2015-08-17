@@ -16,7 +16,7 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, Props }
+import akka.actor.{ Actor, ActorRef, Props }
 import java.net.URLEncoder
 
 object FlowFacade {
@@ -31,6 +31,9 @@ object FlowFacade {
   case class RemoveFlow(name: String)
   case class FlowRemoved(name: String)
   case class FlowUnknown(name: String)
+
+  case class GetMessages(flowName: String)
+  case class AddMessage(flowName: String, text: String)
 
   // $COVERAGE-OFF$
   final val Name = "flow-facade"
@@ -47,22 +50,42 @@ class FlowFacade extends Actor {
   private var flowsByName = Map.empty[String, FlowDescriptor]
 
   override def receive = {
-    case GetFlows                                                    => sender() ! flowsByName.valuesIterator.to[Set]
-    case AddFlow(label) if !flowsByName.contains(labelToName(label)) => addFlow(label)
-    case AddFlow(label)                                              => sender() ! FlowExists(label)
-    case RemoveFlow(name) if flowsByName.contains(name)              => removeFlow(name)
-    case RemoveFlow(name)                                            => sender() ! FlowUnknown(name)
+    case GetFlows                   => sender() ! flowsByName.valuesIterator.to[Set]
+    case AddFlow(label)             => addFlow(label)
+    case RemoveFlow(name)           => removeFlow(name)
+    case GetMessages(flowName)      => getMessages(flowName)
+    case AddMessage(flowName, text) => addMessage(flowName, text)
   }
 
-  private def addFlow(label: String) = {
-    val name = labelToName(label)
+  protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props, name)
+
+  protected def forwardToFlow(name: String)(message: Any): Unit = context.child(name).foreach(_.forward(message))
+
+  private def addFlow(label: String) = withUnknownFlow(label) { name =>
     val flowDescriptor = FlowDescriptor(name, label)
     flowsByName += name -> flowDescriptor
+    createFlow(name)
     sender() ! FlowAdded(flowDescriptor)
   }
 
-  private def removeFlow(name: String) = {
+  private def removeFlow(name: String) = withExistingFlow(name) { name =>
     flowsByName -= name
     sender() ! FlowRemoved(name)
   }
+
+  private def getMessages(flowName: String) = withExistingFlow(flowName) { name =>
+    forwardToFlow(name)(Flow.GetMessages)
+  }
+
+  private def addMessage(flowName: String, text: String) = withExistingFlow(flowName) { name =>
+    forwardToFlow(name)(Flow.AddMessage(text))
+  }
+
+  private def withUnknownFlow(label: String)(f: String => Unit) = {
+    val name = labelToName(label)
+    if (!flowsByName.contains(name)) f(name) else sender() ! FlowExists(label)
+  }
+
+  private def withExistingFlow(name: String)(f: String => Unit) =
+    if (flowsByName.contains(name)) f(name) else sender() ! FlowUnknown(name)
 }
