@@ -23,7 +23,9 @@ val akkaHttpVersion   = "2.0.1"
 libraryDependencies ++= List(
   "com.typesafe.akka"        %% "akka-actor"                     % akkaVersion,
   "com.typesafe.akka"        %% "akka-http-experimental"         % akkaHttpVersion,
+  "de.heikoseeberger"        %% "akka-http-circe"                % "1.4.2",
   "de.heikoseeberger"        %% "akka-log4j"                     % "1.0.3",
+  "io.circe"                 %% "circe-generic"                  % "0.2.1",
   "org.apache.logging.log4j" %  "log4j-core"                     % "2.5",
   "com.typesafe.akka"        %% "akka-http-testkit-experimental" % akkaHttpVersion % "test",
   "com.typesafe.akka"        %% "akka-testkit"                   % akkaVersion     % "test",
