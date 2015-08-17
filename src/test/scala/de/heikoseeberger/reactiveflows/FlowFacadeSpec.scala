@@ -46,6 +46,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowRemoved("akka"))
+      sender.expectNoActor(flowFacade.path / "akka")
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowUnknown("akka"))
