@@ -36,8 +36,10 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDescriptor("akka", "Akka")))
-      system.actorSelection(flowFacade.path / "akka") ! Identify(None)
-      sender.expectMsgPF() { case ActorIdentity(_, Some(_)) => () }
+      sender.awaitAssert {
+        system.actorSelection(flowFacade.path / "akka") ! Identify(None)
+        sender.expectMsgPF() { case ActorIdentity(_, Some(_)) => () }
+      }
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowExists("Akka"))
@@ -47,6 +49,10 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowRemoved("akka"))
+      sender.awaitAssert {
+        system.actorSelection(flowFacade.path / "akka") ! Identify(None)
+        sender.expectMsgPF() { case ActorIdentity(_, None) => () }
+      }
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowUnknown("akka"))
