@@ -18,12 +18,21 @@ package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Status }
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives
 import akka.pattern.pipe
 import akka.stream.ActorMaterializer
+import akka.pattern.{ ask, pipe }
+import akka.stream.Materializer
+import akka.util.Timeout
+import de.heikoseeberger.akkahttpcirce.CirceSupport
 import scala.concurrent.ExecutionContext
 
 object HttpService {
+
+  case class AddFlowRequest(label: String)
+
+  case class AddMessageRequest(text: String)
 
   private[reactiveflows] case object Stop
 
@@ -31,10 +40,16 @@ object HttpService {
   final val Name = "http-service"
   // $COVERAGE-ON$
 
-  def props(interface: String, port: Int): Props = Props(new HttpService(interface, port))
+  def props(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout): Props =
+    Props(new HttpService(interface, port, flowFacade, flowFacadeTimeout))
 
-  private[reactiveflows] def route(httpService: ActorRef)(implicit ec: ExecutionContext) = {
+  private[reactiveflows] def route(
+    httpService: ActorRef, flowFacade: ActorRef, flowFacadeTimeout: Timeout
+  )(implicit ec: ExecutionContext, mat: Materializer) = {
+    import CirceCodec._
+    import CirceSupport._
     import Directives._
+    import io.circe.generic.auto._
 
     // format: OFF
     def assets = getFromResourceDirectory("web") ~ pathSingleSlash(getFromResource("web/index.html"))
@@ -47,20 +62,62 @@ object HttpService {
         }
       }
     }
+
+    def flows = pathPrefix("flows") {
+      import FlowFacade._
+      implicit val timeout = flowFacadeTimeout
+      path(Segment / "messages") { flowName =>
+        get {
+          onSuccess(flowFacade ? GetMessages(flowName)) {
+            case messages: Seq[Flow.Message] @unchecked => complete(messages)
+            case unknownFlow: FlowUnknown               => complete(StatusCodes.NotFound -> unknownFlow)
+          }
+        } ~
+        post {
+          entity(as[AddMessageRequest]) {
+            case AddMessageRequest(text) =>
+              onSuccess(flowFacade ? AddMessage(flowName, text)) {
+                case messageAdded: Flow.MessageAdded => complete(StatusCodes.Created -> messageAdded)
+                case unknownFlow: FlowUnknown        => complete(StatusCodes.NotFound -> unknownFlow)
+              }
+          }
+        }
+      } ~
+      path(Segment) { flowName =>
+        delete {
+          onSuccess(flowFacade ? RemoveFlow(flowName)) {
+            case flowRemoved: FlowRemoved => complete(StatusCodes.NoContent)
+            case unknownFlow: FlowUnknown => complete(StatusCodes.NotFound -> unknownFlow)
+          }
+        }
+      } ~
+      get {
+        complete((flowFacade ? GetFlows).mapTo[Iterable[FlowDescriptor]])
+      } ~
+      post {
+        entity(as[AddFlowRequest]) { addFlowRequest =>
+          onSuccess(flowFacade ? AddFlow(addFlowRequest.label)) {
+            case flowAdded: FlowAdded     => complete(StatusCodes.Created -> flowAdded)
+            case existingFlow: FlowExists => complete(StatusCodes.Conflict -> existingFlow)
+          }
+        }
+      }
+    }
     // format: ON
 
-    assets ~ stop
+    assets ~ stop ~ flows
   }
 }
 
-class HttpService(interface: String, port: Int) extends Actor with ActorLogging {
+class HttpService(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout)
+    extends Actor with ActorLogging {
   import HttpService._
   import context.dispatcher
 
   private implicit val mat = ActorMaterializer()
 
   Http(context.system)
-    .bindAndHandle(route(self), interface, port)
+    .bindAndHandle(route(self, flowFacade, flowFacadeTimeout), interface, port)
     .pipeTo(self)
 
   override def receive = binding
