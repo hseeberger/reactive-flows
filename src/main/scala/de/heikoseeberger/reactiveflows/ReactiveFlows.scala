@@ -16,7 +16,7 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
 
 object ReactiveFlows {
 
@@ -29,10 +29,23 @@ object ReactiveFlows {
 
 class ReactiveFlows extends Actor with ActorLogging {
 
-  createFlowFacade()
+  private val mediator = context.watch(createMediator())
+
+  context.watch(createFlowFacade())
   log.info("Up and running")
 
-  override def receive = Actor.emptyBehavior
+  override def receive = {
+    case Terminated(actor) => onTerminated(actor)
+  }
 
-  protected def createFlowFacade(): ActorRef = context.actorOf(FlowFacade.props, FlowFacade.Name)
+  protected def createMediator(): ActorRef = context.actorOf(PubSubMediator.props, PubSubMediator.Name)
+
+  protected def createFlowFacade(): ActorRef = context.actorOf(FlowFacade.props(mediator), FlowFacade.Name)
+
+  // $COVERAGE-OFF$
+  protected def onTerminated(actor: ActorRef): Unit = {
+    log.error("Terminating the system because {} terminated!", actor)
+    context.system.terminate()
+  }
+  // $COVERAGE-ON$
 }
