@@ -34,7 +34,8 @@ class ReactiveFlows extends Actor with ActorLogging with ActorSettings {
 
   private val mediator = context.watch(createMediator())
 
-  context.watch(createFlowFacade())
+  private val flowFacade = context.watch(createFlowFacade())
+
   context.watch(createHttpService())
   log.info("Up and running")
 
@@ -49,7 +50,7 @@ class ReactiveFlows extends Actor with ActorLogging with ActorSettings {
   // $COVERAGE-OFF$
   protected def createHttpService(): ActorRef = {
     import settings.httpService._
-    context.actorOf(HttpService.props(interface, port), HttpService.Name)
+    context.actorOf(HttpService.props(interface, port, flowFacade, flowFacadeTimeout), HttpService.Name)
   }
   // $COVERAGE-ON$
 
