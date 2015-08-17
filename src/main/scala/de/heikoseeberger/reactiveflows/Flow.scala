@@ -16,21 +16,23 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, Props }
+import akka.actor.{ Actor, ActorRef, Props }
 import java.time.LocalDateTime
 
 object Flow {
 
+  sealed trait MessageEvent
+
   case object GetMessages
   case class Message(text: String, time: LocalDateTime)
 
-  case class AddMessage(text: String)
+  case class AddMessage(text: String) extends MessageEvent
   case class MessageAdded(flowName: String, message: Message)
 
-  def props: Props = Props(new Flow)
+  def props(mediator: ActorRef): Props = Props(new Flow(mediator))
 }
 
-class Flow extends Actor {
+class Flow(mediator: ActorRef) extends Actor {
   import Flow._
 
   private var messages = Vector.empty[Message]
@@ -43,6 +45,8 @@ class Flow extends Actor {
   private def addMessage(text: String) = {
     val message = Message(text, LocalDateTime.now())
     messages +:= message
-    sender() ! MessageAdded(self.path.name, message)
+    val messageAdded = MessageAdded(self.path.name, message)
+    mediator ! PubSubMediator.Publish(className[MessageEvent], messageAdded)
+    sender() ! messageAdded
   }
 }
