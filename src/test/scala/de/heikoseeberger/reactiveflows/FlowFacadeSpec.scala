@@ -16,9 +16,12 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.testkit.TestProbe
+import akka.actor.{ ActorDSL, ActorIdentity, ActorRef, Identify }
+import akka.testkit.{ TestActor, TestProbe }
+import java.time.LocalDateTime
 
 class FlowFacadeSpec extends BaseAkkaSpec {
+  import ActorDSL._
   import FlowFacade._
 
   "A FlowFacade actor" should {
@@ -33,6 +36,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDescriptor("akka", "Akka")))
+      sender.expectActor(flowFacade.path / "akka")
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowExists("Akka"))
@@ -48,6 +52,43 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! GetFlows
       sender.expectMsg(Set.empty)
+    }
+
+    "correctly handle GetMessages and AddMessage commands" in {
+      val sender = TestProbe()
+      implicit val senderRef = sender.ref
+
+      val time = LocalDateTime.now()
+
+      val flow = TestProbe()
+      flow.setAutoPilot(new TestActor.AutoPilot {
+        def run(sender: ActorRef, msg: Any) = {
+          msg match {
+            case Flow.GetMessages =>
+              sender ! Vector(Flow.Message("Akka rocks!", time))
+              TestActor.KeepRunning
+            case Flow.AddMessage(text) =>
+              sender ! Flow.MessageAdded("akka", Flow.Message(text, time))
+              TestActor.KeepRunning
+          }
+        }
+      })
+      val flowFacade = actor(new FlowFacade {
+        override protected def createFlow(name: String) = actor(context, name)(new Act {
+          become { case message => flow.ref.forward(message) }
+        })
+      })
+
+      flowFacade ! GetMessages("akka")
+      sender.expectMsg(FlowUnknown("akka"))
+
+      flowFacade ! AddFlow("Akka")
+      sender.expectMsg(FlowAdded(FlowDescriptor("akka", "Akka")))
+      flowFacade ! GetMessages("akka")
+      sender.expectMsg(Vector(Flow.Message("Akka rocks!", time)))
+
+      flowFacade ! AddMessage("akka", "Akka really rocks!")
+      sender.expectMsg(Flow.MessageAdded("akka", Flow.Message("Akka really rocks!", time)))
     }
   }
 }
