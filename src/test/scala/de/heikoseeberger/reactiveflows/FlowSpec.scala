@@ -26,7 +26,8 @@ class FlowSpec extends BaseAkkaSpec {
       val sender = TestProbe()
       implicit val senderRef = sender.ref
 
-      val flow = system.actorOf(Flow.props)
+      val mediator = TestProbe()
+      val flow = system.actorOf(Flow.props(mediator.ref))
       val flowName = flow.path.name
 
       flow ! GetMessages
@@ -34,6 +35,10 @@ class FlowSpec extends BaseAkkaSpec {
 
       flow ! AddMessage("Akka rocks!")
       val time = sender.expectMsgPF() { case MessageAdded(`flowName`, Message("Akka rocks!", time)) => time }
+      mediator.expectMsg(PubSubMediator.Publish(
+        Flow.MessageEventKey,
+        MessageAdded(`flowName`, Message("Akka rocks!", time))
+      ))
 
       flow ! GetMessages
       sender.expectMsg(List(Message("Akka rocks!", time)))
