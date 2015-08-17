@@ -37,14 +37,16 @@ object FlowFacade {
 
   // $COVERAGE-OFF$
   final val Name = "flow-facade"
+
+  final val FlowEventKey = "flow-events"
   // $COVERAGE-ON$
 
-  def props: Props = Props(new FlowFacade)
+  def props(mediator: ActorRef): Props = Props(new FlowFacade(mediator))
 
   private def labelToName(label: String) = URLEncoder.encode(label.toLowerCase, "UTF-8")
 }
 
-class FlowFacade extends Actor {
+class FlowFacade(mediator: ActorRef) extends Actor {
   import FlowFacade._
 
   private var flowsByName = Map.empty[String, FlowDescriptor]
@@ -57,7 +59,7 @@ class FlowFacade extends Actor {
     case AddMessage(flowName, text) => addMessage(flowName, text)
   }
 
-  protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props, name)
+  protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props(mediator), name)
 
   protected def forwardToFlow(name: String)(message: Any): Unit = context.child(name).foreach(_.forward(message))
 
@@ -65,13 +67,17 @@ class FlowFacade extends Actor {
     val flowDescriptor = FlowDescriptor(name, label)
     flowsByName += name -> flowDescriptor
     createFlow(name)
-    sender() ! FlowAdded(flowDescriptor)
+    val flowAdded = FlowAdded(flowDescriptor)
+    mediator ! PubSubMediator.Publish(FlowEventKey, flowAdded)
+    sender() ! flowAdded
   }
 
   private def removeFlow(name: String) = withExistingFlow(name) { name =>
     flowsByName -= name
     context.child(name).foreach(context.stop)
-    sender() ! FlowRemoved(name)
+    val flowRemoved = FlowRemoved(name)
+    mediator ! PubSubMediator.Publish(FlowEventKey, flowRemoved)
+    sender() ! flowRemoved
   }
 
   private def getMessages(flowName: String) = withExistingFlow(flowName) { name =>
