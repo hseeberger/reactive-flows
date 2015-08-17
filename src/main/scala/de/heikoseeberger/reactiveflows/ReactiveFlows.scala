@@ -16,7 +16,7 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorRef, Props, Terminated }
+import akka.actor.{ Actor, ActorRef, Props, SupervisorStrategy, Terminated }
 import de.heikoseeberger.akkamacrologging.ActorLogging
 
 object ReactiveFlows {
@@ -29,6 +29,8 @@ object ReactiveFlows {
 }
 
 class ReactiveFlows extends Actor with ActorLogging {
+
+  override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
   private val mediator = context.watch(createMediator())
 
