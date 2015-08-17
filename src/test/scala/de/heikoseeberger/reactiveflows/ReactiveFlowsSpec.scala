@@ -47,5 +47,20 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
 
       probe.expectMsg("terminated")
     }
+
+    "terminate the system upon failure of a child actor" in {
+      val probe = TestProbe()
+      actor(new ReactiveFlows {
+        override protected def createFlowFacade() = actor(context)(new Act {
+          self ! "blow-up"
+          become {
+            case "blow-up" => sys.error("Blown up!")
+          }
+        })
+        override protected def onTerminated(actor: ActorRef) = probe.ref ! "terminated"
+      })
+
+      probe.expectMsg("terminated")
+    }
   }
 }
