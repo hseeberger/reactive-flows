@@ -29,7 +29,8 @@ class FlowFacadeSpec extends BaseAkkaSpec {
       val sender = TestProbe()
       implicit val senderRef = sender.ref
 
-      val flowFacade = system.actorOf(FlowFacade.props)
+      val mediator = TestProbe()
+      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref))
 
       flowFacade ! GetFlows
       sender.expectMsg(Set.empty)
@@ -40,6 +41,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
         system.actorSelection(flowFacade.path / "akka") ! Identify(None)
         sender.expectMsgPF() { case ActorIdentity(_, Some(_)) => () }
       }
+      mediator.expectMsg(PubSubMediator.Publish(FlowFacade.FlowEventKey, FlowAdded(FlowDescriptor("akka", "Akka"))))
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowExists("Akka"))
@@ -53,6 +55,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
         system.actorSelection(flowFacade.path / "akka") ! Identify(None)
         sender.expectMsgPF() { case ActorIdentity(_, None) => () }
       }
+      mediator.expectMsg(PubSubMediator.Publish(FlowFacade.FlowEventKey, FlowRemoved("akka")))
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowUnknown("akka"))
@@ -80,7 +83,8 @@ class FlowFacadeSpec extends BaseAkkaSpec {
           }
         }
       })
-      val flowFacade = actor(new FlowFacade {
+      val mediator = TestProbe()
+      val flowFacade = actor(new FlowFacade(mediator.ref) {
         override protected def createFlow(name: String) = actor(context, name)(new Act {
           become { case message => flow.ref.forward(message) }
         })
