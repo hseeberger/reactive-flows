@@ -16,6 +16,8 @@
 
 package de.heikoseeberger
 
+import scala.reflect.{ ClassTag, classTag }
+
 package object reactiveflows {
 
   // $COVERAGE-OFF$
@@ -31,4 +33,6 @@ package object reactiveflows {
   val IndexedSeq = scala.collection.immutable.IndexedSeq
   type IndexedSeq[+A] = scala.collection.immutable.IndexedSeq[A]
   // $COVERAGE-ON$
+
+  def className[A: ClassTag]: String = classTag[A].runtimeClass.getName
 }
