@@ -1,5 +1,6 @@
 val reactiveFlows = project
   .in(file("."))
+  .configs(MultiJvm)
   .enablePlugins(AutomateHeaderPlugin, GitVersioning, JavaAppPackaging, DockerPlugin)
 
 organization := "de.heikoseeberger"
@@ -15,22 +16,25 @@ scalacOptions ++= List(
   "-encoding", "UTF-8"
 )
 
-unmanagedSourceDirectories.in(Compile) := List(scalaSource.in(Compile).value)
-unmanagedSourceDirectories.in(Test)    := List(scalaSource.in(Test).value)
+unmanagedSourceDirectories.in(Compile)  := List(scalaSource.in(Compile).value)
+unmanagedSourceDirectories.in(Test)     := List(scalaSource.in(Test).value)
+unmanagedSourceDirectories.in(MultiJvm) := List(scalaSource.in(MultiJvm).value)
 
 val akkaVersion       = "2.4.1"
 val akkaHttpVersion   = "2.0-M2"
 libraryDependencies ++= List(
-  "com.typesafe.akka"        %% "akka-actor"                        % akkaVersion,
-  "com.typesafe.akka"        %% "akka-http-experimental"            % akkaHttpVersion,
-  "com.typesafe.akka"        %% "akka-http-spray-json-experimental" % akkaHttpVersion,
-  "de.heikoseeberger"        %% "akka-log4j"                        % "1.0.2",
-  "de.heikoseeberger"        %% "akka-macro-logging"                % "0.1.0",
-  "de.heikoseeberger"        %% "akka-sse"                          % "1.3.0",
-  "org.apache.logging.log4j" %  "log4j-core"                        % "2.4.1",
-  "com.typesafe.akka"        %% "akka-http-testkit-experimental"    % akkaHttpVersion % "test",
-  "com.typesafe.akka"        %% "akka-testkit"                      % akkaVersion     % "test",
-  "org.scalatest"            %% "scalatest"                         % "2.2.5"         % "test"
+  "com.typesafe.akka"        %% "akka-cluster-tools"                 % akkaVersion,
+  "com.typesafe.akka"        %% "akka-distributed-data-experimental" % akkaVersion,
+  "com.typesafe.akka"        %% "akka-http-experimental"             % akkaHttpVersion,
+  "com.typesafe.akka"        %% "akka-http-spray-json-experimental"  % akkaHttpVersion,
+  "de.heikoseeberger"        %% "akka-log4j"                         % "1.0.2",
+  "de.heikoseeberger"        %% "akka-macro-logging"                 % "0.1.0",
+  "de.heikoseeberger"        %% "akka-sse"                           % "1.3.0",
+  "org.apache.logging.log4j" %  "log4j-core"                         % "2.4.1",
+  "com.typesafe.akka"        %% "akka-http-testkit-experimental"     % akkaHttpVersion % "test",
+  "com.typesafe.akka"        %% "akka-multi-node-testkit"            % akkaVersion     % "test",
+  "com.typesafe.akka"        %% "akka-testkit"                       % akkaVersion     % "test",
+  "org.scalatest"            %% "scalatest"                          % "2.2.5"         % "test"
 )
 
 initialCommands := """|import de.heikoseeberger.reactiveflows._""".stripMargin
@@ -42,8 +46,12 @@ preferences := preferences.value
   .setPreference(AlignSingleLineCaseStatements, true)
   .setPreference(AlignSingleLineCaseStatements.MaxArrowIndent, 100)
   .setPreference(DoubleIndentClassDeclaration, true)
+inConfig(MultiJvm)(SbtScalariform.configScalariformSettings)
+inConfig(MultiJvm)(compileInputs.in(compile) := { format.value; compileInputs.in(compile).value })
 
 headers := Map("scala" -> de.heikoseeberger.sbtheader.license.Apache2_0("2015", "Heiko Seeberger"))
+AutomateHeaderPlugin.automateFor(Compile, Test, MultiJvm)
+HeaderPlugin.settingsFor(Compile, Test, MultiJvm)
 
 test.in(Test)         := { scalastyle.in(Compile).toTask("").value; test.in(Test).value }
 scalastyleFailOnError := true
@@ -56,8 +64,8 @@ maintainer in Docker := "Heiko Seeberger"
 daemonUser in Docker := "root"
 dockerBaseImage      := "java:8"
 dockerRepository     := Some("hseeberger")
-dockerExposedPorts   := List(8000)
+dockerExposedPorts   := List(2552, 8000)
 
-addCommandAlias("rf1", "reStart -Dreactive-flows.http-service.port=8001")
-addCommandAlias("rf2", "run     -Dreactive-flows.http-service.port=8002")
-addCommandAlias("rf3", "run     -Dreactive-flows.http-service.port=8003")
+addCommandAlias("rf1", "reStart -Dreactive-flows.http-service.port=8001 -Dakka.remote.netty.tcp.port=2551 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551")
+addCommandAlias("rf2", "run     -Dreactive-flows.http-service.port=8002 -Dakka.remote.netty.tcp.port=2552 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551")
+addCommandAlias("rf3", "run     -Dreactive-flows.http-service.port=8003 -Dakka.remote.netty.tcp.port=2553 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551")
