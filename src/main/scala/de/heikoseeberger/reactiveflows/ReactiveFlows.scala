@@ -49,7 +49,10 @@ class ReactiveFlows extends Actor with ActorLogging with ActorSettings {
   // $COVERAGE-OFF$
   protected def createHttpService(): ActorRef = {
     import settings.httpService._
-    context.actorOf(HttpService.props(interface, port, flowFacade, flowFacadeTimeout), HttpService.Name)
+    context.actorOf(
+      HttpService.props(interface, port, flowFacade, flowFacadeTimeout, mediator, eventBufferSize),
+      HttpService.Name
+    )
   }
   // $COVERAGE-ON$
 
