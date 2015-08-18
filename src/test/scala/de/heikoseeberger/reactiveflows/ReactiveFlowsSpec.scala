@@ -25,7 +25,9 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
   "Creating a ReactiveFlows actor" should {
     """result in logging "Up and running" at INFO level""" in {
       EventFilter.info(occurrences = 1, message = "Up and running").intercept {
-        system.actorOf(Props(new ReactiveFlows))
+        val mediator = TestProbe()
+        val replicator = TestProbe()
+        system.actorOf(Props(new ReactiveFlows(mediator.ref, replicator.ref)))
       }
     }
 
@@ -33,7 +35,9 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       val sender = TestProbe()
       implicit val senderRef = sender.ref
 
-      val reactiveFlows = system.actorOf(ReactiveFlows.props)
+      val mediator = TestProbe()
+      val replicator = TestProbe()
+      val reactiveFlows = system.actorOf(ReactiveFlows.props(mediator.ref, replicator.ref))
       sender.awaitAssert {
         system.actorSelection(reactiveFlows.path / FlowFacade.Name) ! Identify(None)
         sender.expectMsgPF() { case ActorIdentity(_, Some(_)) => () }
@@ -44,7 +48,9 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
   "ReactiveFlows" should {
     "terminate the system upon termination of a child actor" in {
       val probe = TestProbe()
-      actor(new ReactiveFlows {
+      val mediator = TestProbe()
+      val replicator = TestProbe()
+      actor(new ReactiveFlows(mediator.ref, replicator.ref) {
         override protected def createFlowFacade() = actor(context)(new Act {
           context.stop(self)
         })
@@ -56,7 +62,9 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
 
     "terminate the system upon failure of a child actor" in {
       val probe = TestProbe()
-      actor(new ReactiveFlows {
+      val mediator = TestProbe()
+      val replicator = TestProbe()
+      actor(new ReactiveFlows(mediator.ref, replicator.ref) {
         override protected def createFlowFacade() = actor(context)(new Act {
           self ! "blow-up"
           become {
