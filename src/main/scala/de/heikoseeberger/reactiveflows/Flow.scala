@@ -21,11 +21,13 @@ import java.time.LocalDateTime
 
 object Flow {
 
+  sealed trait MessageEvent
+
   case object GetMessages
   case class Message(text: String, time: LocalDateTime)
 
   case class AddMessage(text: String)
-  case class MessageAdded(flowName: String, message: Message)
+  case class MessageAdded(flowName: String, message: Message) extends MessageEvent
 
   // $COVERAGE-OFF$
   final val MessageEventKey = "message-events"
