@@ -1,4 +1,5 @@
 addSbtPlugin("com.typesafe.sbt"  % "sbt-git"               % "0.8.5")
+addSbtPlugin("com.typesafe.sbt"  % "sbt-multi-jvm"         % "0.3.11")
 addSbtPlugin("com.typesafe.sbt"  % "sbt-native-packager"   % "1.0.5")
 addSbtPlugin("de.heikoseeberger" % "sbt-header"            % "1.5.0")
 addSbtPlugin("io.spray"          % "sbt-revolver"          % "0.8.0-RC1")
