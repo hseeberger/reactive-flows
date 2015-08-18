@@ -20,13 +20,15 @@ unmanagedSourceDirectories.in(Compile) := Vector(scalaSource.in(Compile).value)
 unmanagedSourceDirectories.in(Test)    := Vector(scalaSource.in(Test).value)
 
 val akkaVersion       = "2.4.2"
+val circeVersion      = "0.3.0"
 libraryDependencies ++= Vector(
   "com.typesafe.akka"        %% "akka-actor"             % akkaVersion,
   "com.typesafe.akka"        %% "akka-http-experimental" % akkaVersion,
   "de.heikoseeberger"        %% "akka-http-circe"        % "1.5.2",
   "de.heikoseeberger"        %% "akka-log4j"             % "1.1.2",
-  "io.circe"                 %% "circe-generic"          % "0.3.0",
-  "io.circe"                 %% "circe-java8"            % "0.3.0",
+  "de.heikoseeberger"        %% "akka-sse"               % "1.6.3",
+  "io.circe"                 %% "circe-generic"          % circeVersion,
+  "io.circe"                 %% "circe-java8"            % circeVersion,
   "org.apache.logging.log4j" %  "log4j-core"             % "2.5",
   "com.typesafe.akka"        %% "akka-http-testkit"      % akkaVersion % "test",
   "com.typesafe.akka"        %% "akka-testkit"           % akkaVersion % "test",
