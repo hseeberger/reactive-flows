@@ -21,15 +21,17 @@ import java.net.URLEncoder
 
 object FlowFacade {
 
+  sealed trait FlowEvent
+
   case object GetFlows
   case class FlowDescriptor(name: String, label: String)
 
   case class AddFlow(label: String)
-  case class FlowAdded(flowDescriptor: FlowDescriptor)
+  case class FlowAdded(flowDescriptor: FlowDescriptor) extends FlowEvent
   case class FlowExists(label: String)
 
   case class RemoveFlow(name: String)
-  case class FlowRemoved(name: String)
+  case class FlowRemoved(name: String) extends FlowEvent
   case class FlowUnknown(name: String)
 
   case class GetMessages(flowName: String)
