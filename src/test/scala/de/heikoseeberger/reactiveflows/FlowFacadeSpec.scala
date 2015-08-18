@@ -17,6 +17,9 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ ActorDSL, ActorIdentity, ActorRef, Identify }
+import akka.cluster.Cluster
+import akka.cluster.ddata.{ DistributedData, LWWMapKey, Replicator }
+import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.testkit.{ TestActor, TestProbe }
 import java.time.LocalDateTime
 
@@ -24,13 +27,18 @@ class FlowFacadeSpec extends BaseAkkaSpec {
   import ActorDSL._
   import FlowFacade._
 
+  implicit val cluster = Cluster(system)
+
   "A FlowFacade actor" should {
     "correctly handle GetFlows, AddFlow and RemoveFlow commands" in {
       val sender = TestProbe()
       implicit val senderRef = sender.ref
 
       val mediator = TestProbe()
-      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref))
+      val replicator = TestProbe()
+      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref, replicator.ref))
+
+      replicator.expectMsg(Replicator.Subscribe(LWWMapKey[FlowDescriptor]("flows"), flowFacade))
 
       flowFacade ! GetFlows
       sender.expectMsg(Set.empty)
@@ -41,7 +49,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
         system.actorSelection(flowFacade.path / "akka") ! Identify(None)
         sender.expectMsgPF() { case ActorIdentity(_, Some(_)) => () }
       }
-      mediator.expectMsg(PubSubMediator.Publish(FlowFacade.FlowEventKey, FlowAdded(FlowDescriptor("akka", "Akka"))))
+      mediator.expectMsg(DistributedPubSubMediator.Publish(FlowFacade.FlowEventKey, FlowAdded(FlowDescriptor("akka", "Akka"))))
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowExists("Akka"))
@@ -55,7 +63,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
         system.actorSelection(flowFacade.path / "akka") ! Identify(None)
         sender.expectMsgPF() { case ActorIdentity(_, None) => () }
       }
-      mediator.expectMsg(PubSubMediator.Publish(FlowFacade.FlowEventKey, FlowRemoved("akka")))
+      mediator.expectMsg(DistributedPubSubMediator.Publish(FlowFacade.FlowEventKey, FlowRemoved("akka")))
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowUnknown("akka"))
@@ -84,7 +92,8 @@ class FlowFacadeSpec extends BaseAkkaSpec {
         }
       })
       val mediator = TestProbe()
-      val flowFacade = actor(new FlowFacade(mediator.ref) {
+      val replicator = TestProbe()
+      val flowFacade = actor(new FlowFacade(mediator.ref, replicator.ref) {
         override protected def createFlow(name: String) = actor(context, name)(new Act {
           become { case message => flow.ref.forward(message) }
         })
@@ -100,6 +109,24 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! AddMessage("akka", "Akka really rocks!")
       sender.expectMsg(Flow.MessageAdded("akka", Flow.Message("Akka really rocks!", time)))
+    }
+
+    "correctly update DistributedData" in {
+      val mediator = TestProbe()
+      val replicator = DistributedData(system).replicator
+      val subscriber = TestProbe()
+      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref, replicator))
+      replicator ! Replicator.Subscribe(FlowFacade.flowReplicatorKey, subscriber.ref)
+
+      flowFacade ! AddFlow("Akka")
+      subscriber.expectMsgPF() {
+        case changed @ Replicator.Changed(`flowReplicatorKey`) if changed.get(flowReplicatorKey).entries.keySet == Set("akka") => ()
+      }
+
+      flowFacade ! RemoveFlow("akka")
+      subscriber.expectMsgPF() {
+        case changed @ Replicator.Changed(`flowReplicatorKey`) if changed.get(flowReplicatorKey).entries.isEmpty => ()
+      }
     }
   }
 }
