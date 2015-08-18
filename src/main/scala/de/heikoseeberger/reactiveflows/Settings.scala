@@ -25,8 +25,10 @@ class Settings(system: ExtendedActorSystem) extends Extension {
 
   object httpService {
     val address: String = reactiveFlows.getString("http-service.address")
+    val eventBufferSize: Int = reactiveFlows.getInt("http-service.event-buffer-size")
     val flowFacadeTimeout: FiniteDuration = getDuration("http-service.flow-facade-timeout")
     val port: Int = reactiveFlows.getInt("http-service.port")
+    val selfTimeout: FiniteDuration = getDuration("http-service.self-timeout")
   }
 
   private val reactiveFlows = system.settings.config.getConfig("reactive-flows")
