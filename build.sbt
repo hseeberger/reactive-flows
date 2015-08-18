@@ -26,6 +26,7 @@ libraryDependencies ++= List(
   "com.typesafe.akka"        %% "akka-http-spray-json-experimental" % akkaHttpVersion,
   "de.heikoseeberger"        %% "akka-log4j"                        % "1.0.3",
   "de.heikoseeberger"        %% "akka-macro-logging"                % "0.1.0",
+  "de.heikoseeberger"        %% "akka-sse"                          % "1.4.1",
   "org.apache.logging.log4j" %  "log4j-core"                        % "2.5",
   "com.typesafe.akka"        %% "akka-http-testkit-experimental"    % akkaHttpVersion % "test",
   "com.typesafe.akka"        %% "akka-testkit"                      % akkaVersion     % "test",
