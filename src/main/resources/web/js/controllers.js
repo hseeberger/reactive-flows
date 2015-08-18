@@ -46,4 +46,56 @@ reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Message', fu
             $scope.switchCurrentFlow(flows[0].name);
         }
     });
+
+    // SSE for flows
+    var flowSource = new EventSource('/flow-events');
+    flowSource.addEventListener(
+        'added',
+        function(event) {
+            $scope.$apply(function() {
+                var flow = JSON.parse(event.data);
+                console.log('Received flow added event for flow ' + flow.name);
+                $scope.flows.push(flow);
+                if ($scope.currentFlowName == null)
+                    $scope.switchCurrentFlow(flow.name);
+            });
+        },
+        false
+    );
+    flowSource.addEventListener(
+        'removed',
+        function(event) {
+            $scope.$apply(function() {
+                console.log('Received flow removed event for flow ' + event.data);
+                $scope.flows = $scope.flows.filter(function(flow) {
+                    return flow.name != event.data;
+                });
+                if ($scope.flows.length > 0)
+                    if ($scope.currentFlowName == event.data)
+                        $scope.switchCurrentFlow($scope.flows[0].name);
+                    else {
+                        $scope.currentFlowName = null;
+                        $scope.currentFlowLabel = null;
+                        $scope.shouldShowForm = false;
+                        $scope.messages = [];
+                    }
+            });
+        },
+        false
+    );
+
+    // SSE for messages
+    var messageSource = new EventSource('/message-events');
+    messageSource.addEventListener(
+        'added',
+        function(event) {
+            $scope.$apply(function() {
+                var messageAdded = JSON.parse(event.data);
+                console.log('Received message added event for flow ' + messageAdded.flowName);
+                if ($scope.currentFlowName == messageAdded.flowName)
+                    $scope.messages.push(messageAdded.message);
+            });
+        },
+        false
+    );
 }]);
