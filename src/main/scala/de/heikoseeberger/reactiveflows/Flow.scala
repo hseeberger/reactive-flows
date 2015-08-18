@@ -26,8 +26,8 @@ object Flow {
   case object GetMessages
   case class Message(text: String, time: LocalDateTime)
 
-  case class AddMessage(text: String) extends MessageEvent
-  case class MessageAdded(flowName: String, message: Message)
+  case class AddMessage(text: String)
+  case class MessageAdded(flowName: String, message: Message) extends MessageEvent
 
   def props(mediator: ActorRef): Props = Props(new Flow(mediator))
 }
