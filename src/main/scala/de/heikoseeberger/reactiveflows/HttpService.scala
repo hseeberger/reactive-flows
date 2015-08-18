@@ -21,11 +21,13 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives
 import akka.pattern.{ ask, pipe }
-import akka.stream.Materializer
-import akka.stream.scaladsl.ImplicitMaterializer
+import akka.stream.scaladsl.{ ImplicitMaterializer, Source }
+import akka.stream.{ Materializer, OverflowStrategy }
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpcirce.CirceSupport
+import de.heikoseeberger.akkasse.{ EventStreamMarshalling, ServerSentEvent }
 import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
 
 object HttpService {
 
@@ -39,15 +41,16 @@ object HttpService {
   final val Name = "http-service"
   // $COVERAGE-ON$
 
-  def props(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout): Props =
-    Props(new HttpService(interface, port, flowFacade, flowFacadeTimeout))
+  def props(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout, mediator: ActorRef, eventBufferSize: Int): Props =
+    Props(new HttpService(interface, port, flowFacade, flowFacadeTimeout, mediator, eventBufferSize))
 
   private[reactiveflows] def route(
-    httpService: ActorRef, flowFacade: ActorRef, flowFacadeTimeout: Timeout
+    httpService: ActorRef, flowFacade: ActorRef, flowFacadeTimeout: Timeout, mediator: ActorRef, eventBufferSize: Int
   )(implicit ec: ExecutionContext, mat: Materializer) = {
     import CirceCodec._
     import CirceSupport._
     import Directives._
+    import EventStreamMarshalling._
     import io.circe.generic.auto._
 
     // format: OFF
@@ -102,19 +105,42 @@ object HttpService {
         }
       }
     }
+
+    def flowEvents = path("flow-events") {
+      get {
+        complete {
+          serverSentEvents(ServerSentEvents.fromFlowEvent)
+        }
+      }
+    }
+
+    def messageEvents = path("message-events") {
+      get {
+        complete {
+          serverSentEvents(ServerSentEvents.fromMessageEvent)
+        }
+      }
+    }
     // format: ON
 
-    assets ~ stop ~ flows
+    def serverSentEvents[A: ClassTag](toServerSentEvent: A => ServerSentEvent) = {
+      def subscribe(subscriber: ActorRef) = mediator ! PubSubMediator.Subscribe(className[A], subscriber)
+      Source.actorRef[A](eventBufferSize, OverflowStrategy.dropHead)
+        .map(toServerSentEvent)
+        .mapMaterializedValue(subscribe)
+    }
+
+    assets ~ stop ~ flows ~ flowEvents ~ messageEvents
   }
 }
 
-class HttpService(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout)
+class HttpService(interface: String, port: Int, flowFacade: ActorRef, flowFacadeTimeout: Timeout, mediator: ActorRef, eventBufferSize: Int)
     extends Actor with ActorLogging with ImplicitMaterializer {
   import HttpService._
   import context.dispatcher
 
   Http(context.system)
-    .bindAndHandle(route(self, flowFacade, flowFacadeTimeout), interface, port)
+    .bindAndHandle(route(self, flowFacade, flowFacadeTimeout, mediator, eventBufferSize), interface, port)
     .pipeTo(self)
 
   override def receive = binding
