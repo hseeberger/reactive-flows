@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ ActorRef, Status }
+import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.{ StatusCodes, Uri }
 import akka.http.scaladsl.model.headers.Location
@@ -265,7 +266,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with Scalate
         val flowEventTopic = className[FlowFacade.FlowEvent]
         def run(sender: ActorRef, msg: Any) = {
           msg match {
-            case PubSubMediator.Subscribe(`flowEventTopic`, source) =>
+            case DistributedPubSubMediator.Subscribe(`flowEventTopic`, _, source) =>
               source ! FlowFacade.FlowAdded(akkaFlow)
               source ! FlowFacade.FlowAdded(angularJsFlow)
               source ! Status.Success(None)
@@ -303,7 +304,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with Scalate
         val messageEventTopic = className[Flow.MessageEvent]
         def run(sender: ActorRef, msg: Any) = {
           msg match {
-            case PubSubMediator.Subscribe(`messageEventTopic`, source) =>
+            case DistributedPubSubMediator.Subscribe(`messageEventTopic`, _, source) =>
               source ! akkaMessageAdded
               source ! angularJsMessageAdded
               source ! Status.Success(None)

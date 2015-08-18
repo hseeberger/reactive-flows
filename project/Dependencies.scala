@@ -12,14 +12,17 @@ object Version {
 }
 
 object Library {
-  val akkaHttp        = "com.typesafe.akka"        %% "akka-http-experimental" % Version.Akka
-  val akkaHttpCirce   = "de.heikoseeberger"        %% "akka-http-circe"        % Version.AkkaHttpJson
-  val akkaHttpTestkit = "com.typesafe.akka"        %% "akka-http-testkit"      % Version.Akka
-  val akkaLog4j       = "de.heikoseeberger"        %% "akka-log4j"             % Version.AkkaLog4j
-  val akkaSse         = "de.heikoseeberger"        %% "akka-sse"               % Version.AkkaSse
-  val akkaTestkit     = "com.typesafe.akka"        %% "akka-testkit"           % Version.Akka
-  val circeGeneric    = "io.circe"                 %% "circe-generic"          % Version.Circe
-  val circeJava8      = "io.circe"                 %% "circe-java8"            % Version.Circe
-  val log4jCore       = "org.apache.logging.log4j" %  "log4j-core"             % Version.Log4j
-  val scalaTest       = "org.scalatest"            %% "scalatest"              % Version.ScalaTest
+  val akkaClusterTools     = "com.typesafe.akka"        %% "akka-cluster-tools"                 % Version.Akka
+  val akkaDistributedData  = "com.typesafe.akka"        %% "akka-distributed-data-experimental" % Version.Akka
+  val akkaHttp             = "com.typesafe.akka"        %% "akka-http-experimental"             % Version.Akka
+  val akkaHttpCirce        = "de.heikoseeberger"        %% "akka-http-circe"                    % Version.AkkaHttpJson
+  val akkaHttpTestkit      = "com.typesafe.akka"        %% "akka-http-testkit"                  % Version.Akka
+  val akkaLog4j            = "de.heikoseeberger"        %% "akka-log4j"                         % Version.AkkaLog4j
+  val akkaMultiNodeTestkit = "com.typesafe.akka"        %% "akka-multi-node-testkit"            % Version.Akka
+  val akkaSse              = "de.heikoseeberger"        %% "akka-sse"                           % Version.AkkaSse
+  val akkaTestkit          = "com.typesafe.akka"        %% "akka-testkit"                       % Version.Akka
+  val circeGeneric         = "io.circe"                 %% "circe-generic"                      % Version.Circe
+  val circeJava8           = "io.circe"                 %% "circe-java8"                        % Version.Circe
+  val log4jCore            = "org.apache.logging.log4j" %  "log4j-core"                         % Version.Log4j
+  val scalaTest            = "org.scalatest"            %% "scalatest"                          % Version.ScalaTest
 }
