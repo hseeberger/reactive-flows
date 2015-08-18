@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Status }
+import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives
@@ -127,7 +128,7 @@ object HttpService {
     // format: ON
 
     def serverSentEvents[A: ClassTag](toServerSentEvent: A => ServerSentEvent) = {
-      def subscribe(subscriber: ActorRef) = mediator ! PubSubMediator.Subscribe(className[A], subscriber)
+      def subscribe(subscriber: ActorRef) = mediator ! DistributedPubSubMediator.Subscribe(className[A], subscriber)
       Source.actorRef[A](eventBufferSize, OverflowStrategy.dropHead)
         .map(toServerSentEvent)
         .mapMaterializedValue(subscribe)
