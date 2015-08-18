@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorRef, Props }
+import akka.cluster.pubsub.DistributedPubSubMediator
 import java.time.LocalDateTime
 
 object Flow {
@@ -46,7 +47,7 @@ class Flow(mediator: ActorRef) extends Actor {
     val message = Message(text, LocalDateTime.now())
     messages +:= message
     val messageAdded = MessageAdded(self.path.name, message)
-    mediator ! PubSubMediator.Publish(className[MessageEvent], messageAdded)
+    mediator ! DistributedPubSubMediator.Publish(className[MessageEvent], messageAdded)
     sender() ! messageAdded
   }
 }
