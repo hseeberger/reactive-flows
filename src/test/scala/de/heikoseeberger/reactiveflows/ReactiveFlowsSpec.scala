@@ -24,7 +24,9 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
 
   "Creating a ReactiveFlows actor" should {
     "result in creating a FlowFacade child actor" in {
-      val reactiveFlows = actor(new ReactiveFlows {
+      val mediator = TestProbe()
+      val replicator = TestProbe()
+      val reactiveFlows = actor(new ReactiveFlows(mediator.ref, replicator.ref) {
         override protected def createHttpService() = system.deadLetters
       })
       TestProbe().expectActor(reactiveFlows.path / FlowFacade.Name)
@@ -34,7 +36,9 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
   "ReactiveFlows" should {
     "terminate the system upon termination of a child actor" in {
       val probe = TestProbe()
-      actor(new ReactiveFlows {
+      val mediator = TestProbe()
+      val replicator = TestProbe()
+      actor(new ReactiveFlows(mediator.ref, replicator.ref) {
         override protected def createFlowFacade() = actor(context)(new Act {
           context.stop(self)
         })
@@ -47,7 +51,9 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
 
     "terminate the system upon failure of a child actor" in {
       val probe = TestProbe()
-      actor(new ReactiveFlows {
+      val mediator = TestProbe()
+      val replicator = TestProbe()
+      actor(new ReactiveFlows(mediator.ref, replicator.ref) {
         override protected def createFlowFacade() = actor(context)(new Act {
           self ! "blow-up"
           become {
