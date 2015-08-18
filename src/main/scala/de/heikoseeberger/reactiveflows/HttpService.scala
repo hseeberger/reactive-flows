@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Status }
+import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives
@@ -126,7 +127,7 @@ object HttpService {
     }
     // format: ON
 
-    def subscribe(key: String)(subscriber: ActorRef) = mediator ! PubSubMediator.Subscribe(key, subscriber)
+    def subscribe(key: String)(subscriber: ActorRef) = mediator ! DistributedPubSubMediator.Subscribe(key, subscriber)
 
     assets ~ stop ~ flows ~ flowEvents ~ messageEvents
   }

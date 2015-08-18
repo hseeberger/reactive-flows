@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ ActorRef, Status }
+import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.RouteTest
@@ -262,7 +263,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with Scalate
       mediator.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any) = {
           msg match {
-            case PubSubMediator.Subscribe(FlowFacade.FlowEventKey, source) =>
+            case DistributedPubSubMediator.Subscribe(FlowFacade.FlowEventKey, _, source) =>
               source ! FlowFacade.FlowAdded(akkaFlow)
               source ! FlowFacade.FlowAdded(angularJsFlow)
               source ! Status.Success(None)
@@ -299,7 +300,7 @@ class HttpServiceSpec extends WordSpec with Matchers with RouteTest with Scalate
       mediator.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any) = {
           msg match {
-            case PubSubMediator.Subscribe(Flow.MessageEventKey, source) =>
+            case DistributedPubSubMediator.Subscribe(Flow.MessageEventKey, _, source) =>
               source ! akkaMessageAdded
               source ! angularJsMessageAdded
               source ! Status.Success(None)
