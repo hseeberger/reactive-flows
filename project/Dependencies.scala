@@ -9,9 +9,10 @@ object Version {
 }
 
 object Library {
-  val akkaActor   = "com.typesafe.akka"        %% "akka-actor"   % Version.Akka
-  val akkaLog4j   = "de.heikoseeberger"        %% "akka-log4j"   % Version.AkkaLog4j
-  val akkaTestkit = "com.typesafe.akka"        %% "akka-testkit" % Version.Akka
-  val log4jCore   = "org.apache.logging.log4j" %  "log4j-core"   % Version.Log4j
-  val scalaTest   = "org.scalatest"            %% "scalatest"    % Version.ScalaTest
+  val akkaHttp        = "com.typesafe.akka"        %% "akka-http-experimental" % Version.Akka
+  val akkaHttpTestkit = "com.typesafe.akka"        %% "akka-http-testkit"      % Version.Akka
+  val akkaLog4j       = "de.heikoseeberger"        %% "akka-log4j"             % Version.AkkaLog4j
+  val akkaTestkit     = "com.typesafe.akka"        %% "akka-testkit"           % Version.Akka
+  val log4jCore       = "org.apache.logging.log4j" %  "log4j-core"             % Version.Log4j
+  val scalaTest       = "org.scalatest"            %% "scalatest"              % Version.ScalaTest
 }
