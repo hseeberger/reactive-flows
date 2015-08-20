@@ -50,12 +50,13 @@ object FlowFacade {
 
   private val updateFlowData = Replicator.Update(flowReplicatorKey, LWWMap.empty[FlowDescriptor], Replicator.WriteLocal) _
 
-  def props(mediator: ActorRef, replicator: ActorRef): Props = Props(new FlowFacade(mediator, replicator))
+  def props(mediator: ActorRef, replicator: ActorRef, flowShardRegion: ActorRef): Props =
+    Props(new FlowFacade(mediator, replicator, flowShardRegion))
 
   private def labelToName(label: String) = URLEncoder.encode(label.toLowerCase, "UTF-8")
 }
 
-class FlowFacade(mediator: ActorRef, replicator: ActorRef) extends Actor {
+class FlowFacade(mediator: ActorRef, replicator: ActorRef, flowShardRegion: ActorRef) extends Actor {
   import FlowFacade._
 
   private implicit val cluster = Cluster(context.system)
@@ -73,15 +74,12 @@ class FlowFacade(mediator: ActorRef, replicator: ActorRef) extends Actor {
     case changed @ Replicator.Changed(`flowReplicatorKey`) => flowsByName = changed.get(flowReplicatorKey).entries
   }
 
-  protected def createFlow(name: String): ActorRef = context.actorOf(Flow.props(mediator), name)
-
-  protected def forwardToFlow(name: String)(message: Any): Unit = context.child(name).foreach(_.forward(message))
+  protected def forwardToFlow(name: String)(message: Any): Unit = flowShardRegion.forward(name -> message)
 
   private def addFlow(label: String) = withUnknownFlow(label) { name =>
     val flowDescriptor = FlowDescriptor(name, label)
     flowsByName += name -> flowDescriptor
     replicator ! updateFlowData(_ + (name -> flowDescriptor))
-    createFlow(name)
     val flowAdded = FlowAdded(flowDescriptor)
     mediator ! DistributedPubSubMediator.Publish(FlowEventKey, flowAdded)
     sender() ! flowAdded
@@ -90,7 +88,7 @@ class FlowFacade(mediator: ActorRef, replicator: ActorRef) extends Actor {
   private def removeFlow(name: String) = withExistingFlow(name) { name =>
     flowsByName -= name
     replicator ! updateFlowData(_ - name)
-    context.child(name).foreach(context.stop)
+    forwardToFlow(name)(Flow.Stop)
     val flowRemoved = FlowRemoved(name)
     mediator ! DistributedPubSubMediator.Publish(FlowEventKey, flowRemoved)
     sender() ! flowRemoved
