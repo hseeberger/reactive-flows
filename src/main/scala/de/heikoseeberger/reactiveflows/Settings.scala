@@ -16,20 +16,20 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.ActorSystem
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import akka.actor.{ Actor, ExtendedActorSystem, Extension, ExtensionKey }
 
-object ReactiveFlowsApp {
+object Settings extends ExtensionKey[Settings]
 
-  private val jvmArg = """-D(\S+)=(\S+)""".r
+class Settings(system: ExtendedActorSystem) extends Extension {
 
-  def main(args: Array[String]): Unit = {
-    for (jvmArg(name, value) <- args) System.setProperty(name, value)
-
-    val system = ActorSystem("reactive-flows-system")
-    system.actorOf(ReactiveFlows.props, ReactiveFlows.Name)
-
-    Await.ready(system.whenTerminated, Duration.Inf)
+  object httpService {
+    val address: String = reactiveFlows.getString("http-service.address")
+    val port: Int = reactiveFlows.getInt("http-service.port")
   }
+
+  private val reactiveFlows = system.settings.config.getConfig("reactive-flows")
+}
+
+trait ActorSettings { this: Actor =>
+  val settings: Settings = Settings(context.system)
 }
