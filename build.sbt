@@ -7,7 +7,7 @@ lazy val reactiveFlows = project
 name := "reactive-flows"
 
 libraryDependencies ++= Vector(
-  Library.akkaClusterTools,
+  Library.akkaClusterSharding,
   Library.akkaDistributedData,
   Library.akkaHttp,
   Library.akkaHttpCirce,
