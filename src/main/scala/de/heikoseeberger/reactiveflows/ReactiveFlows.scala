@@ -24,11 +24,13 @@ object ReactiveFlows {
   // $COVERAGE-OFF$
   final val Name = "reactive-flows"
 
-  def props(mediator: ActorRef, replicator: ActorRef): Props = Props(new ReactiveFlows(mediator, replicator))
+  def props(mediator: ActorRef, replicator: ActorRef, flowShardRegion: ActorRef): Props =
+    Props(new ReactiveFlows(mediator, replicator, flowShardRegion))
   // $COVERAGE-ON$
 }
 
-class ReactiveFlows(mediator: ActorRef, replicator: ActorRef) extends Actor with ActorLogging with ActorSettings {
+class ReactiveFlows(mediator: ActorRef, replicator: ActorRef, flowShardRegion: ActorRef)
+    extends Actor with ActorLogging with ActorSettings {
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
@@ -41,7 +43,10 @@ class ReactiveFlows(mediator: ActorRef, replicator: ActorRef) extends Actor with
     case Terminated(actor) => onTerminated(actor)
   }
 
-  protected def createFlowFacade(): ActorRef = context.actorOf(FlowFacade.props(mediator, replicator), FlowFacade.Name)
+  protected def createFlowFacade(): ActorRef = context.actorOf(
+    FlowFacade.props(mediator, replicator, flowShardRegion),
+    FlowFacade.Name
+  )
 
   // $COVERAGE-OFF$
   protected def createHttpService(): ActorRef = {
