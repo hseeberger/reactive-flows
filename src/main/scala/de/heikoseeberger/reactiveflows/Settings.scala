@@ -23,6 +23,12 @@ object Settings extends ExtensionKey[Settings]
 
 class Settings(system: ExtendedActorSystem) extends Extension {
 
+  object flowFacade {
+    // $COVERAGE-OFF$
+    val shardCount: Int = reactiveFlows.getInt("flow-facade.shard-count")
+    // $COVERAGE-ON$
+  }
+
   object httpService {
     val address: String = reactiveFlows.getString("http-service.address")
     val eventBufferSize: Int = reactiveFlows.getInt("http-service.event-buffer-size")
