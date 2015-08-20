@@ -20,11 +20,13 @@ unmanagedSourceDirectories.in(Test)    := List(scalaSource.in(Test).value)
 
 val akkaVersion       = "2.4.2-RC1"
 libraryDependencies ++= List(
-  "com.typesafe.akka"        %% "akka-actor"   % akkaVersion,
-  "de.heikoseeberger"        %% "akka-log4j"   % "1.0.3",
-  "org.apache.logging.log4j" %  "log4j-core"   % "2.5",
-  "com.typesafe.akka"        %% "akka-testkit" % akkaVersion % "test",
-  "org.scalatest"            %% "scalatest"    % "2.2.6"     % "test"
+  "com.typesafe.akka"        %% "akka-actor"                     % akkaVersion,
+  "com.typesafe.akka"        %% "akka-http-experimental"         % akkaVersion,
+  "de.heikoseeberger"        %% "akka-log4j"                     % "1.0.3",
+  "org.apache.logging.log4j" %  "log4j-core"                     % "2.5",
+  "com.typesafe.akka"        %% "akka-http-testkit-experimental" % akkaVersion % "test",
+  "com.typesafe.akka"        %% "akka-testkit"                   % akkaVersion % "test",
+  "org.scalatest"            %% "scalatest"                      % "2.2.6"     % "test"
 )
 
 initialCommands := """|import de.heikoseeberger.reactiveflows._""".stripMargin
@@ -44,9 +46,14 @@ scalastyleFailOnError := true
 
 coverageMinimum          := 100
 coverageFailOnMinimum    := true
-coverageExcludedPackages := ".*ReactiveFlowsApp"
+coverageExcludedPackages := ".*ReactiveFlowsApp;.*Settings"
 
 maintainer in Docker := "Heiko Seeberger"
 daemonUser in Docker := "root"
 dockerBaseImage      := "java:8"
 dockerRepository     := Some("hseeberger")
+dockerExposedPorts   := List(8000)
+
+addCommandAlias("rf1", "reStart -Dreactive-flows.http-service.port=8001")
+addCommandAlias("rf2", "run     -Dreactive-flows.http-service.port=8002")
+addCommandAlias("rf3", "run     -Dreactive-flows.http-service.port=8003")
