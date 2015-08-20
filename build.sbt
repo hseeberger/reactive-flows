@@ -23,7 +23,7 @@ unmanagedSourceDirectories.in(MultiJvm) := List(scalaSource.in(MultiJvm).value)
 val akkaVersion       = "2.4.1"
 val akkaHttpVersion   = "2.0"
 libraryDependencies ++= List(
-  "com.typesafe.akka"        %% "akka-cluster-tools"                 % akkaVersion,
+  "com.typesafe.akka"        %% "akka-cluster-sharding"              % akkaVersion,
   "com.typesafe.akka"        %% "akka-distributed-data-experimental" % akkaVersion,
   "com.typesafe.akka"        %% "akka-http-experimental"             % akkaHttpVersion,
   "com.typesafe.akka"        %% "akka-http-spray-json-experimental"  % akkaHttpVersion,
