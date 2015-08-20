@@ -27,7 +27,8 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       EventFilter.info(occurrences = 1, message = "Up and running").intercept {
         val mediator = TestProbe()
         val replicator = TestProbe()
-        actor(new ReactiveFlows(mediator.ref, replicator.ref) {
+        val flowShardRegion = TestProbe()
+        actor(new ReactiveFlows(mediator.ref, replicator.ref, flowShardRegion.ref) {
           override protected def createHttpService() = system.deadLetters
         })
       }
@@ -36,7 +37,8 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
     "result in creating a FlowFacade child actor" in {
       val mediator = TestProbe()
       val replicator = TestProbe()
-      val reactiveFlows = actor(new ReactiveFlows(mediator.ref, replicator.ref) {
+      val flowShardRegion = TestProbe()
+      val reactiveFlows = actor(new ReactiveFlows(mediator.ref, replicator.ref, flowShardRegion.ref) {
         override protected def createHttpService() = system.deadLetters
       })
       TestProbe().expectActor(reactiveFlows.path / FlowFacade.Name)
@@ -48,7 +50,8 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       val probe = TestProbe()
       val mediator = TestProbe()
       val replicator = TestProbe()
-      actor(new ReactiveFlows(mediator.ref, replicator.ref) {
+      val flowShardRegion = TestProbe()
+      actor(new ReactiveFlows(mediator.ref, replicator.ref, flowShardRegion.ref) {
         override protected def createFlowFacade() = actor(context)(new Act {
           context.stop(self)
         })
@@ -63,7 +66,8 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       val probe = TestProbe()
       val mediator = TestProbe()
       val replicator = TestProbe()
-      actor(new ReactiveFlows(mediator.ref, replicator.ref) {
+      val flowShardRegion = TestProbe()
+      actor(new ReactiveFlows(mediator.ref, replicator.ref, flowShardRegion.ref) {
         override protected def createFlowFacade() = actor(context)(new Act {
           self ! "blow-up"
           become {
