@@ -1,0 +1,43 @@
+<div class="row">
+    <div class="col-md-2">
+        <div data-ng-repeat="flow in flows | orderBy:'label'">
+            <div>
+                <button id="{{flow.name}}" type="button" class="btn flow"
+                        data-ng-class="flowBtnClass(flow.name)" data-ng-click="switchCurrentFlow(flow.name)" >
+                    <span class="pull-left">{{flow.label}}</span><!--span class="badge pull-right"></span-->
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-1"></div>
+
+    <div class="col-md-4 messages">
+        <div data-ng-repeat="message in messages | orderBy:'dateTime':true">
+            <div>
+                <div class="date-time">{{message.dateTime}}</div>
+                <div class="text">{{message.text}}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-1"></div>
+
+    <div class="col-md-4">
+        <form name="form" data-ng-show="shouldShowForm" novalidate>
+            <fieldset>
+                <div>
+                    <textarea id="text-input" rows="3" placeholder="Enter new message ..."
+                              data-ng-model="message.text" required>
+                    </textarea>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary pull-right"
+                            data-ng-click="sendMessage()" data-ng-disabled="form.$invalid">
+                        Send to {{currentFlowLabel}}
+                    </button>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+</div>
