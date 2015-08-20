@@ -16,8 +16,9 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorRef, Props }
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import akka.cluster.pubsub.DistributedPubSubMediator
+import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings }
 import java.time.LocalDateTime
 
 object Flow {
@@ -30,8 +31,20 @@ object Flow {
   case class AddMessage(text: String)
   case class MessageAdded(flowName: String, message: Message) extends MessageEvent
 
+  case object Stop
+
   // $COVERAGE-OFF$
   final val MessageEventKey = "message-events"
+
+  final val EntityName = "flow"
+
+  def startSharding(system: ActorSystem, mediator: ActorRef, shardCount: Int): Unit = ClusterSharding(system).start(
+    EntityName,
+    Flow.props(mediator),
+    ClusterShardingSettings(system),
+    { case (name: String, payload) => (name, payload) },
+    { case (name: String, _) => (name.hashCode % shardCount).toString }
+  )
   // $COVERAGE-ON$
 
   def props(mediator: ActorRef): Props = Props(new Flow(mediator))
@@ -45,6 +58,7 @@ class Flow(mediator: ActorRef) extends Actor {
   override def receive = {
     case GetMessages      => sender() ! messages
     case AddMessage(text) => addMessage(text)
+    case Stop             => context.stop(self)
   }
 
   private def addMessage(text: String) = {
