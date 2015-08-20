@@ -1,0 +1,31 @@
+body {
+    padding-top: 50px;
+}
+
+#main {
+    margin-top: 40px;
+}
+
+#text-input {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.flow {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.messages > div {
+    border-bottom: solid lightgray 1px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.messages > div:first-of-type {
+    border-top: solid lightgray 1px;
+}
+
+.messages .date-time {
+    font-style: italic;
+}
