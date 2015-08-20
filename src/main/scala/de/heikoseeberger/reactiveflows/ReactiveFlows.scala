@@ -28,13 +28,14 @@ object ReactiveFlows {
   def props: Props = Props(new ReactiveFlows)
 }
 
-class ReactiveFlows extends Actor with ActorLogging {
+class ReactiveFlows extends Actor with ActorLogging with ActorSettings {
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
   private val mediator = context.watch(createMediator())
 
   context.watch(createFlowFacade())
+  context.watch(createHttpService())
   log.info("Up and running")
 
   override def receive = {
@@ -44,6 +45,11 @@ class ReactiveFlows extends Actor with ActorLogging {
   protected def createMediator(): ActorRef = context.actorOf(PubSubMediator.props, PubSubMediator.Name)
 
   protected def createFlowFacade(): ActorRef = context.actorOf(FlowFacade.props(mediator), FlowFacade.Name)
+
+  protected def createHttpService(): ActorRef = {
+    import settings.httpService._
+    context.actorOf(HttpService.props(interface, port), HttpService.Name)
+  }
 
   // $COVERAGE-OFF$
   protected def onTerminated(actor: ActorRef): Unit = {

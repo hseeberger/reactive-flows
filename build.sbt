@@ -19,13 +19,17 @@ unmanagedSourceDirectories.in(Compile) := List(scalaSource.in(Compile).value)
 unmanagedSourceDirectories.in(Test)    := List(scalaSource.in(Test).value)
 
 val akkaVersion       = "2.4.0"
+val akkaHttpVersion   = "2.0-M1"
 libraryDependencies ++= List(
-  "com.typesafe.akka"        %% "akka-actor"         % akkaVersion,
-  "de.heikoseeberger"        %% "akka-log4j"         % "1.0.2",
-  "de.heikoseeberger"        %% "akka-macro-logging" % "0.1.0",
-  "org.apache.logging.log4j" %  "log4j-core"         % "2.4.1",
-  "com.typesafe.akka"        %% "akka-testkit"       % akkaVersion % "test",
-  "org.scalatest"            %% "scalatest"          % "2.2.5"     % "test"
+  "com.typesafe.akka"        %% "akka-actor"                        % akkaVersion,
+  "com.typesafe.akka"        %% "akka-http-experimental"            % akkaHttpVersion,
+  "com.typesafe.akka"        %% "akka-http-spray-json-experimental" % akkaHttpVersion,
+  "de.heikoseeberger"        %% "akka-log4j"                        % "1.0.2",
+  "de.heikoseeberger"        %% "akka-macro-logging"                % "0.1.0",
+  "org.apache.logging.log4j" %  "log4j-core"                        % "2.4.1",
+  "com.typesafe.akka"        %% "akka-http-testkit-experimental"    % akkaHttpVersion % "test",
+  "com.typesafe.akka"        %% "akka-testkit"                      % akkaVersion     % "test",
+  "org.scalatest"            %% "scalatest"                         % "2.2.5"         % "test"
 )
 
 initialCommands := """|import de.heikoseeberger.reactiveflows._""".stripMargin
@@ -52,3 +56,7 @@ version in Docker    := "latest"
 daemonUser in Docker := "root"
 dockerBaseImage      := "java:8"
 dockerRepository     := Some("hseeberger")
+
+addCommandAlias("rf1", "reStart -Dreactive-flows.http-service.port=8001")
+addCommandAlias("rf2", "run     -Dreactive-flows.http-service.port=8002")
+addCommandAlias("rf3", "run     -Dreactive-flows.http-service.port=8003")
