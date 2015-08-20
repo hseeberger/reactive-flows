@@ -18,6 +18,7 @@ package de.heikoseeberger.reactiveflows
 
 import akka.cluster.Cluster
 import akka.cluster.ddata.DistributedData
+import akka.cluster.sharding.ClusterSharding
 import akka.remote.testkit.{ MultiNodeConfig, MultiNodeSpec }
 import akka.testkit.{ TestDuration, TestProbe }
 import com.typesafe.config.ConfigFactory
@@ -32,9 +33,10 @@ object FlowFacadeSpecConfig extends MultiNodeConfig {
     commonConfig(ConfigFactory.load())
     val node = role(port.toString)
     nodeConfig(node)(ConfigFactory.parseString(
-      s"""|akka.remote.netty.tcp.hostname = "127.0.0.1"
-          |akka.remote.netty.tcp.port     = $port
-          |akka.cluster.seed-nodes        = ["akka.tcp://MultiNodeFlowFacadeSpec@127.0.0.1:2551"]
+      s"""|akka.persistence.journal.plugin = "akka.persistence.journal.inmem"
+          |akka.remote.netty.tcp.hostname  = "127.0.0.1"
+          |akka.remote.netty.tcp.port      = $port
+          |akka.cluster.seed-nodes         = ["akka.tcp://MultiNodeFlowFacadeSpec@127.0.0.1:2551"]
           |""".stripMargin
     ))
     node
@@ -56,12 +58,22 @@ abstract class MultiNodeFlowFacadeSpec extends MultiNodeSpec(FlowFacadeSpecConfi
           Cluster(system).state.members.size shouldBe 2
         }
       }
+      Flow.startSharding(system, system.deadLetters, Settings(system).flowFacade.shardCount)
 
       enterBarrier("ready")
 
-      val flowFacade = system.actorOf(FlowFacade.props(system.deadLetters, DistributedData(system).replicator))
+      val flowFacade = system.actorOf(FlowFacade.props(
+        system.deadLetters,
+        DistributedData(system).replicator,
+        ClusterSharding(system).shardRegion(Flow.EntityName)
+      ))
       runOn(node1) {
+        val sender = TestProbe()
+        implicit val senderRef = sender.ref
         flowFacade ! FlowFacade.AddFlow("Akka")
+        sender.expectMsg(FlowFacade.FlowAdded(FlowFacade.FlowDescriptor("akka", "Akka")))
+        flowFacade ! FlowFacade.AddMessage("akka", "Akka rocks!")
+        sender.expectMsgPF() { case Flow.MessageAdded("akka", Flow.Message("Akka rocks!", _)) => () }
       }
       runOn(node2) {
         val sender = TestProbe()
@@ -72,6 +84,15 @@ abstract class MultiNodeFlowFacadeSpec extends MultiNodeSpec(FlowFacadeSpecConfi
             sender.expectMsg(Set(FlowFacade.FlowDescriptor("akka", "Akka")))
           }
         }
+      }
+
+      enterBarrier("message-added")
+
+      runOn(node2) {
+        val sender = TestProbe()
+        implicit val senderRef = sender.ref
+        flowFacade ! FlowFacade.GetMessages("akka")
+        sender.expectMsgPF() { case List(Flow.Message("Akka rocks!", _)) => () }
       }
     }
   }

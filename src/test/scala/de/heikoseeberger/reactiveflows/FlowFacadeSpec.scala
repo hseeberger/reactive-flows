@@ -36,7 +36,8 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       val mediator = TestProbe()
       val replicator = TestProbe()
-      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref, replicator.ref))
+      val flowShardRegion = TestProbe()
+      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref, replicator.ref, flowShardRegion.ref))
 
       replicator.expectMsg(Replicator.Subscribe(LWWMapKey[FlowDescriptor]("flows"), flowFacade))
 
@@ -45,7 +46,6 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDescriptor("akka", "Akka")))
-      sender.expectActor(flowFacade.path / "akka")
       mediator.expectMsg(DistributedPubSubMediator.Publish(FlowFacade.FlowEventKey, FlowAdded(FlowDescriptor("akka", "Akka"))))
 
       flowFacade ! AddFlow("Akka")
@@ -56,7 +56,6 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowRemoved("akka"))
-      sender.expectNoActor(flowFacade.path / "akka")
       mediator.expectMsg(DistributedPubSubMediator.Publish(FlowFacade.FlowEventKey, FlowRemoved("akka")))
 
       flowFacade ! RemoveFlow("akka")
@@ -72,32 +71,29 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       val time = LocalDateTime.now()
 
-      val flow = TestProbe()
-      flow.setAutoPilot(new TestActor.AutoPilot {
+      val mediator = TestProbe()
+      val replicator = TestProbe()
+      val flowShardRegion = TestProbe()
+      flowShardRegion.setAutoPilot(new TestActor.AutoPilot {
         def run(sender: ActorRef, msg: Any) = {
           msg match {
-            case Flow.GetMessages =>
+            case ("akka", Flow.GetMessages) =>
               sender ! List(Flow.Message("Akka rocks!", time))
               TestActor.KeepRunning
-            case Flow.AddMessage(text) =>
+            case ("akka", Flow.AddMessage(text)) =>
               sender ! Flow.MessageAdded("akka", Flow.Message(text, time))
               TestActor.KeepRunning
           }
         }
       })
-      val mediator = TestProbe()
-      val replicator = TestProbe()
-      val flowFacade = actor(new FlowFacade(mediator.ref, replicator.ref) {
-        override protected def createFlow(name: String) = actor(context, name)(new Act {
-          become { case message => flow.ref.forward(message) }
-        })
-      })
+      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref, replicator.ref, flowShardRegion.ref))
 
       flowFacade ! GetMessages("akka")
       sender.expectMsg(FlowUnknown("akka"))
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDescriptor("akka", "Akka")))
+
       flowFacade ! GetMessages("akka")
       sender.expectMsg(List(Flow.Message("Akka rocks!", time)))
 
@@ -108,8 +104,9 @@ class FlowFacadeSpec extends BaseAkkaSpec {
     "correctly update DistributedData" in {
       val mediator = TestProbe()
       val replicator = DistributedData(system).replicator
+      val flowShardRegion = TestProbe()
       val subscriber = TestProbe()
-      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref, replicator))
+      val flowFacade = system.actorOf(FlowFacade.props(mediator.ref, replicator, flowShardRegion.ref))
       replicator ! Replicator.Subscribe(FlowFacade.flowReplicatorKey, subscriber.ref)
 
       flowFacade ! AddFlow("Akka")
