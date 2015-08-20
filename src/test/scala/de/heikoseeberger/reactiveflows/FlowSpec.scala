@@ -44,5 +44,16 @@ class FlowSpec extends BaseAkkaSpec {
       flow ! GetMessages
       sender.expectMsg(List(Message("Akka rocks!", time)))
     }
+
+    "stop on receiving Stop" in {
+      val probe = TestProbe()
+
+      val mediator = TestProbe()
+      val flow = system.actorOf(Flow.props(mediator.ref))
+
+      probe.watch(flow)
+      flow ! Flow.Stop
+      probe.expectTerminated(flow)
+    }
   }
 }
