@@ -25,7 +25,9 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
   "Creating a ReactiveFlows actor" should {
     """result in logging "Up and running" at INFO level""" in {
       EventFilter.info(occurrences = 1, message = "Up and running").intercept {
-        system.actorOf(Props(new ReactiveFlows))
+        actor(new ReactiveFlows {
+          override protected def createHttpService() = system.deadLetters
+        })
       }
     }
 
@@ -33,7 +35,9 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       val sender = TestProbe()
       implicit val senderRef = sender.ref
 
-      val reactiveFlows = system.actorOf(ReactiveFlows.props)
+      val reactiveFlows = actor(new ReactiveFlows {
+        override protected def createHttpService() = system.deadLetters
+      })
       sender.awaitAssert {
         system.actorSelection(reactiveFlows.path / FlowFacade.Name) ! Identify(None)
         sender.expectMsgPF() { case ActorIdentity(_, Some(_)) => () }
@@ -48,6 +52,7 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
         override protected def createFlowFacade() = actor(context)(new Act {
           context.stop(self)
         })
+        override protected def createHttpService() = system.deadLetters
         override protected def onTerminated(actor: ActorRef) = probe.ref ! "terminated"
       })
 
@@ -63,6 +68,7 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
             case "blow-up" => sys.error("Blown up!")
           }
         })
+        override protected def createHttpService() = system.deadLetters
         override protected def onTerminated(actor: ActorRef) = probe.ref ! "terminated"
       })
 
