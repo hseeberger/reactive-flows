@@ -12,7 +12,7 @@ object Version {
 }
 
 object Library {
-  val akkaClusterTools     = "com.typesafe.akka"        %% "akka-cluster-tools"                 % Version.Akka
+  val akkaClusterSharding  = "com.typesafe.akka"        %% "akka-cluster-sharding"              % Version.Akka
   val akkaDistributedData  = "com.typesafe.akka"        %% "akka-distributed-data-experimental" % Version.Akka
   val akkaHttp             = "com.typesafe.akka"        %% "akka-http-experimental"             % Version.Akka
   val akkaHttpCirce        = "de.heikoseeberger"        %% "akka-http-circe"                    % Version.AkkaHttpJson
