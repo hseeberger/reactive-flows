@@ -65,7 +65,7 @@ abstract class MultiNodeFlowFacadeSpec extends MultiNodeSpec(FlowFacadeSpecConfi
       val flowFacade = system.actorOf(FlowFacade.props(
         system.deadLetters,
         DistributedData(system).replicator,
-        ClusterSharding(system).shardRegion(Flow.EntityName)
+        ClusterSharding(system).shardRegion(className[Flow])
       ))
       runOn(node1) {
         val sender = TestProbe()
