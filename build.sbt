@@ -12,6 +12,7 @@ libraryDependencies ++= Vector(
   Library.akkaHttp,
   Library.akkaHttpCirce,
   Library.akkaLog4j,
+  Library.akkaPersistenceCassandra,
   Library.akkaSse,
   Library.circeGeneric,
   Library.circeJava8,
@@ -27,6 +28,6 @@ initialCommands := """|import de.heikoseeberger.reactiveflows._
 
 coverageExcludedPackages := ".*ReactiveFlowsApp;.*Settings"
 
-addCommandAlias("rf1", "reStart -Dreactive-flows.http-service.port=8001 -Dakka.remote.netty.tcp.port=2551 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551")
-addCommandAlias("rf2", "run     -Dreactive-flows.http-service.port=8002 -Dakka.remote.netty.tcp.port=2552 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551")
-addCommandAlias("rf3", "run     -Dreactive-flows.http-service.port=8003 -Dakka.remote.netty.tcp.port=2553 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551")
+addCommandAlias("rf1", "reStart -Dreactive-flows.http-service.port=8001 -Dakka.remote.netty.tcp.port=2551 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551 -Dcassandra-journal.contact-points.0=192.168.99.100")
+addCommandAlias("rf2", "run     -Dreactive-flows.http-service.port=8002 -Dakka.remote.netty.tcp.port=2552 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551 -Dcassandra-journal.contact-points.0=192.168.99.100")
+addCommandAlias("rf3", "run     -Dreactive-flows.http-service.port=8003 -Dakka.remote.netty.tcp.port=2553 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551 -Dcassandra-journal.contact-points.0=192.168.99.100")
