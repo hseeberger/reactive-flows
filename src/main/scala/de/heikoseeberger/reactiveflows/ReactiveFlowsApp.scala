@@ -39,7 +39,7 @@ object ReactiveFlowsApp {
         ReactiveFlows.props(
           mediator,
           DistributedData(system).replicator,
-          ClusterSharding(system).shardRegion(Flow.EntityName)
+          ClusterSharding(system).shardRegion(className[Flow])
         ),
         ReactiveFlows.Name
       )
