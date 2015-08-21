@@ -16,9 +16,10 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.cluster.pubsub.DistributedPubSubMediator
 import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings }
+import akka.persistence.PersistentActor
 import java.time.LocalDateTime
 
 object Flow {
@@ -34,11 +35,9 @@ object Flow {
   case object Stop
 
   // $COVERAGE-OFF$
-  final val EntityName = "flow"
-
   def startSharding(system: ActorSystem, mediator: ActorRef, shardCount: Int): Unit = ClusterSharding(system).start(
-    EntityName,
-    Flow.props(mediator),
+    className[Flow],
+    props(mediator),
     ClusterShardingSettings(system),
     { case (name: String, payload) => (name, payload) },
     { case (name: String, _) => (name.hashCode % shardCount).toString }
@@ -48,21 +47,27 @@ object Flow {
   def props(mediator: ActorRef): Props = Props(new Flow(mediator))
 }
 
-class Flow(mediator: ActorRef) extends Actor {
+class Flow(mediator: ActorRef) extends PersistentActor {
   import Flow._
+
+  private val name = self.path.name
 
   private var messages = List.empty[Message]
 
-  override def receive = {
+  override def persistenceId = s"flow-$name"
+
+  override def receiveCommand = {
     case GetMessages      => sender() ! messages
     case AddMessage(text) => addMessage(text)
     case Stop             => context.stop(self)
   }
 
-  private def addMessage(text: String) = {
-    val message = Message(text, LocalDateTime.now())
-    messages +:= message
-    val messageAdded = MessageAdded(self.path.name, message)
+  override def receiveRecover = {
+    case MessageAdded(_, message) => messages +:= message
+  }
+
+  private def addMessage(text: String) = persist(MessageAdded(name, Message(text, LocalDateTime.now()))) { messageAdded =>
+    receiveRecover(messageAdded)
     mediator ! DistributedPubSubMediator.Publish(className[MessageEvent], messageAdded)
     sender() ! messageAdded
   }
