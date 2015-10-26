@@ -1,0 +1,20 @@
+[Unit]
+Description=reactive-flows
+After=docker.service etcd2.service
+Requires=docker.service etcd2.service
+
+[Service]
+EnvironmentFile=/etc/environment
+TimeoutStartSec=0
+ExecStartPre=-/usr/bin/docker rm -f reactive-flows-%i
+ExecStart=/usr/bin/bash -c "/usr/bin/docker run --name reactive-flows-%i \
+  -p 2552:2552 \
+  -p 8000:8000 \
+  hseeberger/reactive-flows:2.4.1 \
+  -Dakka.remote.netty.tcp.hostname=${COREOS_PUBLIC_IPV4} \
+  -Dconstructr.akka.coordination.host=${COREOS_PUBLIC_IPV4} \
+  -Dcassandra-journal.contact-points.0=$(/usr/bin/fleetctl list-units | grep cassandra | grep -oE '.{1,3}\\..{1,3}\\..{1,3}\\..{1,3}' | head -1)"
+ExecStop=/usr/bin/docker stop reactive-flows-%i
+
+[X-Fleet]
+Conflicts=reactive-flows@*.service
