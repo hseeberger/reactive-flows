@@ -1,0 +1,19 @@
+[Unit]
+Description=constructr-cassandra
+After=docker.service etcd2.service
+Requires=docker.service etcd2.service
+
+[Service]
+EnvironmentFile=/etc/environment
+TimeoutStartSec=0
+ExecStartPre=-/usr/bin/docker rm -f cassandra-%i
+ExecStart=/usr/bin/bash -c "/usr/bin/docker run --name cassandra-%i \
+  -e CASSANDRA_CLUSTER_NAME=default \
+  -e CASSANDRA_BROADCAST_ADDRESS=${COREOS_PUBLIC_IPV4} \
+  -p 7000:7000 \
+  -p 9042:9042 \
+  constructr/cassandra-3.0.0:0.7.1"
+ExecStop=/usr/bin/docker stop cassandra-%i
+
+[X-Fleet]
+Conflicts=cassandra@*.service

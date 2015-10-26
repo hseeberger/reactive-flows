@@ -1,4 +1,4 @@
-import com.typesafe.sbt.{ GitPlugin, SbtScalariform }
+import com.typesafe.sbt.{ GitPlugin, SbtNativePackager, SbtScalariform }
 import de.heikoseeberger.sbtheader.HeaderPlugin
 import de.heikoseeberger.sbtheader.license.Apache2_0
 import sbt._
@@ -9,7 +9,7 @@ import spray.revolver.RevolverPlugin
 
 object Build extends AutoPlugin {
 
-  override def requires = JvmPlugin && HeaderPlugin && GitPlugin && SbtScalariform && RevolverPlugin
+  override def requires = JvmPlugin && HeaderPlugin && GitPlugin && SbtScalariform && RevolverPlugin && SbtNativePackager
 
   override def trigger = allRequirements
 
