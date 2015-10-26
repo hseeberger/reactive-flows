@@ -20,6 +20,7 @@ unmanagedSourceDirectories.in(Compile)  := List(scalaSource.in(Compile).value)
 unmanagedSourceDirectories.in(Test)     := List(scalaSource.in(Test).value)
 unmanagedSourceDirectories.in(MultiJvm) := List(scalaSource.in(MultiJvm).value)
 
+resolvers            += Resolver.bintrayRepo("hseeberger", "maven")
 val akkaVersion       = "2.4.1"
 val akkaHttpVersion   = "2.0.1"
 libraryDependencies ++= List(
@@ -31,6 +32,7 @@ libraryDependencies ++= List(
   "de.heikoseeberger"        %% "akka-log4j"                         % "1.0.3",
   "de.heikoseeberger"        %% "akka-macro-logging"                 % "0.1.0",
   "de.heikoseeberger"        %% "akka-sse"                           % "1.4.1",
+  "de.heikoseeberger"        %% "constructr-akka"                    % "0.7.1",
   "org.apache.logging.log4j" %  "log4j-core"                         % "2.5",
   "com.typesafe.akka"        %% "akka-http-testkit-experimental"     % akkaHttpVersion % "test",
   "com.typesafe.akka"        %% "akka-multi-node-testkit"            % akkaVersion     % "test",
@@ -68,6 +70,6 @@ dockerBaseImage      := "java:8"
 dockerRepository     := Some("hseeberger")
 dockerExposedPorts   := List(2552, 8000)
 
-addCommandAlias("rf1", "reStart -Dreactive-flows.http-service.port=8001 -Dakka.remote.netty.tcp.port=2551 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551 -Dcassandra-journal.contact-points.0=192.168.99.100")
-addCommandAlias("rf2", "run     -Dreactive-flows.http-service.port=8002 -Dakka.remote.netty.tcp.port=2552 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551 -Dcassandra-journal.contact-points.0=192.168.99.100")
-addCommandAlias("rf3", "run     -Dreactive-flows.http-service.port=8003 -Dakka.remote.netty.tcp.port=2553 -Dakka.cluster.seed-nodes.0=akka.tcp://reactive-flows-system@127.0.0.1:2551 -Dcassandra-journal.contact-points.0=192.168.99.100")
+addCommandAlias("rf1", "reStart -Dreactive-flows.http-service.port=8001 -Dakka.remote.netty.tcp.port=2551 -Dcassandra-journal.contact-points.0=192.168.99.100 -Dconstructr.akka.coordination.host=192.168.99.100")
+addCommandAlias("rf2", "run     -Dreactive-flows.http-service.port=8002 -Dakka.remote.netty.tcp.port=2552 -Dcassandra-journal.contact-points.0=192.168.99.100 -Dconstructr.akka.coordination.host=192.168.99.100")
+addCommandAlias("rf3", "run     -Dreactive-flows.http-service.port=8003 -Dakka.remote.netty.tcp.port=2553 -Dcassandra-journal.contact-points.0=192.168.99.100 -Dconstructr.akka.coordination.host=192.168.99.100")
