@@ -7,6 +7,7 @@ object Version {
   final val AkkaPersistenceCassandra = "0.10"
   final val AkkaSse                  = "1.6.3"
   final val Circe                    = "0.3.0"
+  final val Constructr               = "0.9.1"
   final val Log4j                    = "2.5"
   final val Scala                    = "2.11.7"
   final val ScalaTest                = "2.2.6"
@@ -25,6 +26,7 @@ object Library {
   val akkaTestkit              = "com.typesafe.akka"        %% "akka-testkit"                       % Version.Akka
   val circeGeneric             = "io.circe"                 %% "circe-generic"                      % Version.Circe
   val circeJava8               = "io.circe"                 %% "circe-java8"                        % Version.Circe
+  val constructrAkka           = "de.heikoseeberger"        %% "constructr-akka"                    % Version.Constructr
   val log4jCore                = "org.apache.logging.log4j" %  "log4j-core"                         % Version.Log4j
   val scalaTest                = "org.scalatest"            %% "scalatest"                          % Version.ScalaTest
 }
