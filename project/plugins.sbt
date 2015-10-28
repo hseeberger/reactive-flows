@@ -11,3 +11,5 @@ addSbtPlugin("org.scoverage"     % "sbt-scoverage"         % "1.3.1")
 resolvers += Resolver.url("scoverage-bintray", url("https://dl.bintray.com/sksamuel/sbt-plugins/"))(Resolver.ivyStylePatterns)
 // Temporary workaround until sbt-revolver 0.8.0 has been published to sbt/sbt-plugin-releases
 resolvers += Resolver.url("jrudolph-sbt-plugins", url("https://dl.bintray.com/jrudolph/sbt-plugins"))(Resolver.ivyStylePatterns)
+
+resolvers += "krasserm at bintray" at "http://dl.bintray.com/krasserm/maven"
