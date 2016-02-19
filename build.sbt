@@ -6,8 +6,12 @@ lazy val reactiveFlows = project
 name := "reactive-flows"
 
 libraryDependencies ++= Vector(
-  Library.scalaCheck % "test"
+  Library.akkaActor,
+  Library.akkaLog4j,
+  Library.log4jCore,
+  Library.akkaTestkit % "test",
+  Library.scalaTest   % "test"
 )
 
-initialCommands := """|import de.heikoseeberger.reactive.flows._
+initialCommands := """|import de.heikoseeberger.reactiveflows._
                       |""".stripMargin

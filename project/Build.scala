@@ -1,15 +1,16 @@
-import com.typesafe.sbt.GitPlugin
-import com.typesafe.sbt.SbtScalariform
-import de.heikoseeberger.sbtheader.{ HeaderKey, HeaderPlugin }
+import com.typesafe.sbt.{ GitPlugin, SbtScalariform }
+import de.heikoseeberger.sbtheader.HeaderPlugin
 import de.heikoseeberger.sbtheader.license.Apache2_0
 import sbt._
 import sbt.plugins.JvmPlugin
 import sbt.Keys._
 import scalariform.formatter.preferences.{ AlignSingleLineCaseStatements, DoubleIndentClassDeclaration }
+import scoverage.ScoverageSbtPlugin
+import spray.revolver.RevolverPlugin
 
 object Build extends AutoPlugin {
 
-  override def requires = JvmPlugin && HeaderPlugin && GitPlugin
+  override def requires = JvmPlugin && HeaderPlugin && GitPlugin && SbtScalariform && ScoverageSbtPlugin && RevolverPlugin
 
   override def trigger = allRequirements
 
@@ -39,6 +40,10 @@ object Build extends AutoPlugin {
     GitPlugin.autoImport.git.useGitDescribe := true,
 
     // Header settings
-    HeaderKey.headers := Map("scala" -> Apache2_0("2016", "Heiko Seeberger"))
+    HeaderPlugin.autoImport.headers := Map("scala" -> Apache2_0("2015", "Heiko Seeberger")),
+
+    // Scoverage settings
+    ScoverageSbtPlugin.autoImport.coverageMinimum       := 100,
+    ScoverageSbtPlugin.autoImport.coverageFailOnMinimum := true
   )
 }
