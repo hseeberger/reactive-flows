@@ -1,5 +1,6 @@
-import com.typesafe.sbt.GitPlugin
+import com.typesafe.sbt.{GitPlugin, SbtNativePackager}
 import com.typesafe.sbt.GitPlugin.autoImport._
+import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys.MultiJvm
 import de.heikoseeberger.sbtheader.HeaderPlugin
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
 import de.heikoseeberger.sbtheader.HeaderPattern
@@ -13,7 +14,11 @@ import sbt.Keys._
 object Build extends AutoPlugin {
 
   override def requires =
-    JvmPlugin && HeaderPlugin && GitPlugin && ScalaFmtPlugin
+    JvmPlugin &&
+    HeaderPlugin &&
+    GitPlugin &&
+    ScalaFmtPlugin &&
+    SbtNativePackager
 
   override def trigger = allRequirements
 
@@ -22,6 +27,7 @@ object Build extends AutoPlugin {
     Vector(
       // Core settings
       organization := "de.heikoseeberger",
+      version := version.in(ThisBuild).value, // to avoid sbt-native-packager overwriting version from sbt-git
       licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
       mappings.in(Compile, packageBin) += baseDirectory.in(ThisBuild).value / "LICENSE" -> "LICENSE",
       scalaVersion := Version.Scala,
@@ -35,15 +41,17 @@ object Build extends AutoPlugin {
       ),
       unmanagedSourceDirectories.in(Compile) := Vector(scalaSource.in(Compile).value),
       unmanagedSourceDirectories.in(Test) := Vector(scalaSource.in(Test).value),
+      unmanagedSourceDirectories.in(MultiJvm) := Vector(scalaSource.in(MultiJvm).value),
 
       // scalafmt settings
       formatSbtFiles := false,
       scalafmtConfig := Some(baseDirectory.in(ThisBuild).value / ".scalafmt.conf"),
+      ivyScala       := ivyScala.value.map(_.copy(overrideScalaVersion = sbtPlugin.value)), // TODO Remove once this workaround no longer needed (https://github.com/sbt/sbt/issues/2786)!
 
       // Git settings
       git.useGitDescribe := true,
 
       // Header settings
-      headers := Map("scala" -> Apache2_0("2016", "Heiko Seeberger"))
+      headers := Map("scala" -> Apache2_0("2015", "Heiko Seeberger"))
     )
 }
