@@ -16,11 +16,11 @@
 
 package de.heikoseeberger.reactiveflows
 
+import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.testkit.TestProbe
 
 class FlowSpec extends BaseAkkaSpec {
   import Flow._
-  import PubSubMediator._
 
   "Flow" should {
     "correctly handle GetMessage and AddMessage commands" in {

@@ -17,7 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
-import de.heikoseeberger.reactiveflows.PubSubMediator.Publish
+import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import java.time.LocalDateTime
 import scala.math.{ max, min }
 
