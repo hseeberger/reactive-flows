@@ -30,12 +30,16 @@ import akka.http.scaladsl.model.StatusCodes.{
 import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.server.{ Directives, Route }
 import akka.pattern.{ ask, pipe }
-import akka.stream.ActorMaterializer
+import akka.stream.{ ActorMaterializer, OverflowStrategy }
+import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpcirce.CirceSupport
+import de.heikoseeberger.akkasse.{ EventStreamMarshalling, ServerSentEvent }
+import de.heikoseeberger.reactiveflows.PubSubMediator.Subscribe
 import java.net.InetSocketAddress
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import scala.reflect.ClassTag
 
 object Api {
 
@@ -46,17 +50,30 @@ object Api {
   def apply(address: String,
             port: Int,
             flowFacade: ActorRef,
-            flowFacadeTimeout: FiniteDuration): Props =
-    Props(new Api(address, port, flowFacade, flowFacadeTimeout))
+            flowFacadeTimeout: FiniteDuration,
+            mediator: ActorRef,
+            eventBufferSize: Int): Props =
+    Props(
+      new Api(address,
+              port,
+              flowFacade,
+              flowFacadeTimeout,
+              mediator,
+              eventBufferSize)
+    )
 
-  def route(flowFacade: ActorRef, flowFacadeTimeout: Timeout)(
-      implicit ec: ExecutionContext) = {
+  def route(flowFacade: ActorRef,
+            flowFacadeTimeout: Timeout,
+            mediator: ActorRef,
+            eventBufferSize: Int)(implicit ec: ExecutionContext) = {
     import CirceSupport._
     import Directives._
+    import EventStreamMarshalling._
     import Flow.{ AddMessage => _, GetMessages => _, _ }
     import FlowFacade._
     import io.circe.generic.auto._
     import io.circe.java8.time._
+    import io.circe.syntax._
 
     def assets = {
       def redirectSingleSlash = pathSingleSlash {
@@ -119,7 +136,43 @@ object Api {
       }
     }
 
-    assets ~ flows
+    def flowEvents = path("flow-events") {
+      get {
+        complete {
+          events(fromFlowEvent)
+        }
+      }
+    }
+
+    def messageEvents = path("message-events") {
+      get {
+        complete {
+          events(fromMessageEvent)
+        }
+      }
+    }
+
+    def events[A: ClassTag](toServerSentEvent: A => ServerSentEvent) = {
+      def subscribe(subscriber: ActorRef) =
+        mediator ! Subscribe(className[A], subscriber)
+      Source
+        .actorRef[A](eventBufferSize, OverflowStrategy.dropHead)
+        .map(toServerSentEvent)
+        .mapMaterializedValue(subscribe)
+    }
+
+    def fromFlowEvent(event: FlowEvent): ServerSentEvent =
+      event match {
+        case FlowAdded(desc)   => ServerSentEvent(desc.asJson.noSpaces, "added")
+        case FlowRemoved(name) => ServerSentEvent(name, "removed")
+      }
+
+    def fromMessageEvent(event: MessageEvent): ServerSentEvent =
+      event match {
+        case ma: MessageAdded => ServerSentEvent(ma.asJson.noSpaces, "added")
+      }
+
+    assets ~ flows ~ flowEvents ~ messageEvents
   }
 
   private def completeCreated[A: ToEntityMarshaller](id: Long, a: A): Route =
@@ -137,7 +190,9 @@ object Api {
 class Api(address: String,
           port: Int,
           flowFacade: ActorRef,
-          flowFacadeTimeout: FiniteDuration)
+          flowFacadeTimeout: FiniteDuration,
+          mediator: ActorRef,
+          eventBufferSize: Int)
     extends Actor
     with ActorLogging {
   import Api._
@@ -146,7 +201,11 @@ class Api(address: String,
   private implicit val mat = ActorMaterializer()
 
   Http(context.system)
-    .bindAndHandle(route(flowFacade, flowFacadeTimeout), address, port)
+    .bindAndHandle(
+      route(flowFacade, flowFacadeTimeout, mediator, eventBufferSize),
+      address,
+      port
+    )
     .pipeTo(self)
 
   override def receive = {
