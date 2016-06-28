@@ -16,7 +16,8 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorLogging, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import de.heikoseeberger.reactiveflows.PubSubMediator.Publish
 import java.time.LocalDateTime
 import scala.math.{ max, min }
 
@@ -33,11 +34,11 @@ object Flow {
   final case class MessageAdded(name: String, message: Message)
       extends MessageEvent
 
-  def apply(): Props =
-    Props(new Flow)
+  def apply(mediator: ActorRef): Props =
+    Props(new Flow(mediator))
 }
 
-final class Flow extends Actor with ActorLogging {
+final class Flow(mediator: ActorRef) extends Actor with ActorLogging {
   import Flow._
 
   private var messages = Vector.empty[Message]
@@ -64,6 +65,7 @@ final class Flow extends Actor with ActorLogging {
     val message = Message(messages.size, text, LocalDateTime.now())
     messages +:= message
     val messageAdded = MessageAdded(self.path.name, message)
+    mediator ! Publish(className[MessageEvent], messageAdded)
     log.info("Message starting with '{}' added", text.take(42))
     sender() ! messageAdded
   }
