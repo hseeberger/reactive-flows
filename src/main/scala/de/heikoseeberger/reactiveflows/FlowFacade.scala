@@ -17,12 +17,13 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorContext, ActorLogging, ActorRef, Props }
+import de.heikoseeberger.reactiveflows.PubSubMediator.Publish
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8
 
 object FlowFacade {
 
-  type CreateFlow = (ActorContext, String) => ActorRef
+  type CreateFlow = (ActorContext, String, ActorRef) => ActorRef
 
   final case class FlowDesc(name: String, label: String)
 
@@ -45,17 +46,19 @@ object FlowFacade {
 
   final val Name = "flow-facade"
 
-  def apply(createFlow: CreateFlow = createFlow): Props =
-    Props(new FlowFacade(createFlow))
+  def apply(mediator: ActorRef, createFlow: CreateFlow = createFlow): Props =
+    Props(new FlowFacade(mediator, createFlow))
 
-  private def createFlow(context: ActorContext, name: String) =
-    context.actorOf(Flow(), name)
+  private def createFlow(context: ActorContext,
+                         name: String,
+                         mediator: ActorRef) =
+    context.actorOf(Flow(mediator), name)
 
   private def labelToName(label: String) =
     URLEncoder.encode(label.toLowerCase, UTF_8.name)
 }
 
-final class FlowFacade(createFlow: FlowFacade.CreateFlow)
+final class FlowFacade(mediator: ActorRef, createFlow: FlowFacade.CreateFlow)
     extends Actor
     with ActorLogging {
   import FlowFacade._
@@ -86,8 +89,9 @@ final class FlowFacade(createFlow: FlowFacade.CreateFlow)
     withUnknownFlow(label) { name =>
       val desc = FlowDesc(name, label)
       flowsByName += name -> desc
-      createFlow(context, name)
+      createFlow(context, name, mediator)
       val flowAdded = FlowAdded(desc)
+      mediator ! Publish(className[FlowEvent], flowAdded)
       log.info("Flow with name '{}' added", name)
       sender() ! flowAdded
     }
@@ -99,6 +103,7 @@ final class FlowFacade(createFlow: FlowFacade.CreateFlow)
       flowsByName -= name
       context.child(name).foreach(context.stop)
       val flowRemoved = FlowRemoved(name)
+      mediator ! Publish(className[FlowEvent], flowRemoved)
       log.info("Flow with name '{}' removed", name)
       sender() ! flowRemoved
     }

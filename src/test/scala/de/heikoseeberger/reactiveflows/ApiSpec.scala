@@ -16,18 +16,23 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ ActorRef, Terminated }
+import akka.NotUsed
+import akka.actor.{ ActorRef, Status, Terminated }
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.StatusCodes.{ BadRequest, Conflict, Created, NoContent, NotFound, OK, PermanentRedirect }
-import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.headers.Location
+import akka.http.scaladsl.model.{ StatusCodes, Uri }
 import akka.http.scaladsl.testkit.RouteTest
 import akka.http.scaladsl.testkit.TestFrameworkInterface.Scalatest
+import akka.stream.scaladsl.Source
 import akka.testkit.TestActor.{ AutoPilot, NoAutoPilot }
 import akka.testkit.{ TestDuration, TestProbe }
 import de.heikoseeberger.akkahttpcirce.CirceSupport
+import de.heikoseeberger.akkasse.{ EventStreamUnmarshalling, ServerSentEvent }
+import io.circe.jawn
 import java.time.LocalDateTime
 import org.scalatest.{ Matchers, WordSpec }
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 class ApiSpec
@@ -37,6 +42,7 @@ class ApiSpec
     with Scalatest
     with RequestBuilding {
   import Api._
+  import EventStreamUnmarshalling._
   import Flow.{ AddMessage => _, GetMessages => _, _ }
   import FlowFacade._
 
@@ -45,8 +51,12 @@ class ApiSpec
   "Api" should {
     "stop itself when the HTTP binding fails" in {
       val probe = TestProbe()
-      val apiProps =
-        Api("127.0.0.1", 18000, system.deadLetters, 100.milliseconds.dilated)
+      val apiProps = Api("127.0.0.1",
+                         18000,
+                         system.deadLetters,
+                         100.milliseconds.dilated,
+                         system.deadLetters,
+                         99)
       def createAndWatch() = probe.watch(system.actorOf(apiProps))
       val api1 = createAndWatch()
       val api2 = createAndWatch()
@@ -58,14 +68,17 @@ class ApiSpec
 
   "Api.route" should {
     "respond with PermanentRedirect to index.html upon a 'GET /'" in {
-      Get() ~> route(system.deadLetters, timeout) ~> check {
+      Get() ~> route(system.deadLetters, timeout, system.deadLetters, 99) ~> check {
         status shouldBe PermanentRedirect
         header[Location] shouldBe Some(Location(Uri("index.html")))
       }
     }
 
     "respond with OK upon a 'GET /test.html'" in {
-      Get("/test.html") ~> route(system.deadLetters, timeout) ~> check {
+      Get("/test.html") ~> route(system.deadLetters,
+                                 timeout,
+                                 system.deadLetters,
+                                 99) ~> check {
         status shouldBe OK
         responseAs[String].trim shouldBe "test"
       }
@@ -88,7 +101,7 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Get("/flows") ~> route(flowFacade.ref, timeout) ~> check {
+      Get("/flows") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe OK
         responseAs[Set[FlowDesc]] shouldBe flows
       }
@@ -105,7 +118,10 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Post("/flows", AddFlow("")) ~> route(flowFacade.ref, timeout) ~> check {
+      Post("/flows", AddFlow("")) ~> route(flowFacade.ref,
+                                           timeout,
+                                           system.deadLetters,
+                                           99) ~> check {
         status shouldBe BadRequest
         responseAs[BadCommand] shouldBe BadCommand(emptyLabel)
       }
@@ -122,7 +138,10 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref, timeout) ~> check {
+      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref,
+                                               timeout,
+                                               system.deadLetters,
+                                               99) ~> check {
         status shouldBe Conflict
         responseAs[FlowExists] shouldBe flowExists
       }
@@ -139,7 +158,10 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref, timeout) ~> check {
+      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref,
+                                               timeout,
+                                               system.deadLetters,
+                                               99) ~> check {
         status shouldBe Created
         responseAs[FlowAdded] shouldBe flowAdded
       }
@@ -156,7 +178,10 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Delete("/flows/unknown") ~> route(flowFacade.ref, timeout) ~> check {
+      Delete("/flows/unknown") ~> route(flowFacade.ref,
+                                        timeout,
+                                        system.deadLetters,
+                                        99) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
@@ -173,7 +198,10 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Delete("/flows/akka") ~> route(flowFacade.ref, timeout) ~> check {
+      Delete("/flows/akka") ~> route(flowFacade.ref,
+                                     timeout,
+                                     system.deadLetters,
+                                     99) ~> check {
         status shouldBe NoContent
       }
     }
@@ -189,7 +217,10 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Get("/flows/unknown/messages?id=1") ~> route(flowFacade.ref, timeout) ~> check {
+      Get("/flows/unknown/messages?id=1") ~> route(flowFacade.ref,
+                                                   timeout,
+                                                   system.deadLetters,
+                                                   99) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
@@ -206,7 +237,10 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Get("/flows/akka/messages?count=2") ~> route(flowFacade.ref, timeout) ~> check {
+      Get("/flows/akka/messages?count=2") ~> route(flowFacade.ref,
+                                                   timeout,
+                                                   system.deadLetters,
+                                                   99) ~> check {
         status shouldBe OK
         responseAs[Seq[Message]] shouldBe messages
       }
@@ -224,7 +258,7 @@ class ApiSpec
           }
       })
       val request = Post("/flows/akka/messages", AddMessageRequest(""))
-      request ~> route(flowFacade.ref, timeout) ~> check {
+      request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe BadRequest
         responseAs[BadCommand] shouldBe BadCommand(emptyText)
       }
@@ -242,7 +276,7 @@ class ApiSpec
           }
       })
       val request = Post("/flows/unknown/messages", AddMessageRequest("text"))
-      request ~> route(flowFacade.ref, timeout) ~> check {
+      request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
@@ -260,9 +294,74 @@ class ApiSpec
           }
       })
       val request = Post("/flows/akka/messages", AddMessageRequest("text"))
-      request ~> route(flowFacade.ref, timeout) ~> check {
+      request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe Created
         responseAs[MessageAdded] shouldBe messageAdded
+      }
+    }
+
+    "respond with OK upon a GET for '/flow-events'" in {
+      val mediator      = TestProbe()
+      val akkaFlow      = FlowDesc("akka", "Akka")
+      val angularJsFlow = FlowDesc("angularjs", "AngularJS")
+      mediator.setAutoPilot(new AutoPilot {
+        val flowEventTopic = className[FlowEvent]
+        def run(sender: ActorRef, msg: Any) = {
+          msg match {
+            case PubSubMediator.Subscribe(`flowEventTopic`, source) =>
+              source ! FlowFacade.FlowAdded(akkaFlow)
+              source ! FlowFacade.FlowAdded(angularJsFlow)
+              source ! Status
+                .Success(NotUsed) // Completes the Source.actorRef!
+              NoAutoPilot
+          }
+        }
+      })
+      val request = Get("/flow-events")
+      request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
+        status shouldBe StatusCodes.OK
+        val events = responseAs[Source[ServerSentEvent, Any]].collect {
+          case ServerSentEvent(data, Some(eventType), _, _) =>
+            (jawn.decode[FlowDesc](data).valueOr(throw _), eventType)
+        }
+        val result = Await.result(
+            events.runFold(Vector.empty[(FlowDesc, String)])(_ :+ _),
+            1.second.dilated
+        )
+        result shouldBe Vector((akkaFlow, "added"), (angularJsFlow, "added"))
+      }
+    }
+
+    "respond with OK upon a GET for '/message-events'" in {
+      val mediator         = TestProbe()
+      val akkaMessageAdded = MessageAdded("akka", Message(0, "Akka", now()))
+      val angularJsMessageAdded =
+        MessageAdded("angularjs", Message(1, "Scala", now()))
+      mediator.setAutoPilot(new AutoPilot {
+        val messageEventTopic = className[MessageEvent]
+        def run(sender: ActorRef, msg: Any) = {
+          msg match {
+            case PubSubMediator.Subscribe(`messageEventTopic`, source) =>
+              source ! akkaMessageAdded
+              source ! angularJsMessageAdded
+              source ! Status.Success(None)
+              NoAutoPilot
+          }
+        }
+      })
+      val request = Get("/message-events")
+      request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
+        status shouldBe StatusCodes.OK
+        val events = responseAs[Source[ServerSentEvent, Any]].collect {
+          case ServerSentEvent(data, Some(eventType), _, _) =>
+            (jawn.decode[MessageAdded](data).valueOr(throw _), eventType)
+        }
+        val result = Await.result(
+            events.runFold(Vector.empty[(MessageAdded, String)])(_ :+ _),
+            1.second.dilated
+        )
+        result shouldBe Vector((akkaMessageAdded, "added"),
+                               (angularJsMessageAdded, "added"))
       }
     }
   }
