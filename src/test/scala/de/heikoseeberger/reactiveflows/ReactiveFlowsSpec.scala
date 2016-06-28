@@ -17,32 +17,54 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorSystem, Props }
-import akka.testkit.{ TestDuration, TestProbe }
+import akka.testkit.TestProbe
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 class ReactiveFlowsSpec extends BaseAkkaSpec {
 
   "Creating a ReactiveFlows actor" should {
-    "result in creating an Api child actor" in {
+    "result in creating FlowFacade and Api child actors" in {
       val reactiveFlows = system.actorOf(ReactiveFlows())
+      TestProbe().expectActor(reactiveFlows.path / FlowFacade.Name)
       TestProbe().expectActor(reactiveFlows.path / Api.Name)
     }
   }
 
   "ReactiveFlows" should {
+    "terminate the system when its FlowFacade child actor terminates" in {
+      implicit val system = ActorSystem()
+      system.actorOf(
+        ReactiveFlows(_.actorOf(terminatingActor),
+                      (context, _, _, _, _) => context.actorOf(Props.empty))
+      )
+      Await.ready(system.whenTerminated, 3.seconds)
+    }
+
     "terminate the system when its Api child actor terminates" in {
       implicit val system = ActorSystem()
       system.actorOf(
-        ReactiveFlows((context, _, _) => context.actorOf(terminatingActor))
+        ReactiveFlows(_.actorOf(Props.empty),
+                      (context, _, _, _,
+                       _) => context.actorOf(terminatingActor))
       )
-      Await.ready(system.whenTerminated, 3.seconds.dilated)
+      Await.ready(system.whenTerminated, 3.seconds)
+    }
+
+    "terminate the system when its FlowFacade child actor fails" in {
+      implicit val system = ActorSystem()
+      system.actorOf(
+        ReactiveFlows(_.actorOf(faultyActor),
+                      (context, _, _, _, _) => context.actorOf(Props.empty))
+      )
+      Await.ready(system.whenTerminated, 3.seconds)
     }
 
     "terminate the system when its Api child actor fails" in {
       implicit val system = ActorSystem()
       system.actorOf(
-        ReactiveFlows((context, _, _) => context.actorOf(faultyActor))
+        ReactiveFlows(_.actorOf(Props.empty),
+                      (context, _, _, _, _) => context.actorOf(faultyActor))
       )
       Await.ready(system.whenTerminated, 3.seconds)
     }
