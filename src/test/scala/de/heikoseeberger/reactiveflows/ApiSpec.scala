@@ -18,6 +18,7 @@ package de.heikoseeberger.reactiveflows
 
 import akka.NotUsed
 import akka.actor.{ ActorRef, Status, Terminated }
+import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.StatusCodes.{
   BadRequest,
@@ -316,7 +317,7 @@ class ApiSpec
         val flowEventTopic = className[FlowEvent]
         def run(sender: ActorRef, msg: Any) = {
           msg match {
-            case PubSubMediator.Subscribe(`flowEventTopic`, source) =>
+            case Subscribe(`flowEventTopic`, _, source) =>
               source ! FlowFacade.FlowAdded(akkaFlow)
               source ! FlowFacade.FlowAdded(angularJsFlow)
               source ! Status
@@ -349,7 +350,7 @@ class ApiSpec
         val messageEventTopic = className[MessageEvent]
         def run(sender: ActorRef, msg: Any) = {
           msg match {
-            case PubSubMediator.Subscribe(`messageEventTopic`, source) =>
+            case Subscribe(`messageEventTopic`, _, source) =>
               source ! akkaMessageAdded
               source ! angularJsMessageAdded
               source ! Status.Success(None)

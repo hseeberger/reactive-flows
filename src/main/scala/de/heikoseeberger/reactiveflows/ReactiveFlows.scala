@@ -26,13 +26,15 @@ import akka.actor.{
   SupervisorStrategy,
   Terminated
 }
+import akka.cluster.Cluster
+import akka.cluster.ddata.DistributedData
+import akka.cluster.pubsub.DistributedPubSub
 import scala.concurrent.Await
 import scala.concurrent.duration.{ Duration, FiniteDuration }
 
 object ReactiveFlows {
 
-  type CreateMediator   = ActorContext => ActorRef
-  type CreateFlowFacade = (ActorContext, ActorRef) => ActorRef
+  type CreateFlowFacade = (ActorContext, ActorRef, ActorRef) => ActorRef
   type CreateApi = (ActorContext, String, Int, ActorRef, FiniteDuration,
                     ActorRef, Int) => ActorRef
 
@@ -41,20 +43,24 @@ object ReactiveFlows {
   def main(args: Array[String]): Unit = {
     for (jvmArg(name, value) <- args) System.setProperty(name, value)
     val system = ActorSystem("reactive-flows")
-    system.actorOf(ReactiveFlows(), "root")
+    Cluster(system).registerOnMemberUp {
+      system.actorOf(ReactiveFlows(DistributedPubSub(system).mediator,
+                                   DistributedData(system).replicator),
+                     "root")
+    }
     Await.ready(system.whenTerminated, Duration.Inf)
   }
 
-  def apply(createMediator: CreateMediator = createMediator,
+  def apply(mediator: ActorRef,
+            replicator: ActorRef,
             createFlowFacade: CreateFlowFacade = createFlowFacade,
             createApi: CreateApi = createApi): Props =
-    Props(new ReactiveFlows(createMediator, createFlowFacade, createApi))
+    Props(new ReactiveFlows(mediator, replicator, createFlowFacade, createApi))
 
-  private def createMediator(context: ActorContext) =
-    context.actorOf(PubSubMediator(), PubSubMediator.Name)
-
-  private def createFlowFacade(context: ActorContext, mediator: ActorRef) =
-    context.actorOf(FlowFacade(mediator), FlowFacade.Name)
+  private def createFlowFacade(context: ActorContext,
+                               mediator: ActorRef,
+                               replicator: ActorRef) =
+    context.actorOf(FlowFacade(mediator, replicator), FlowFacade.Name)
 
   private def createApi(context: ActorContext,
                         address: String,
@@ -74,7 +80,8 @@ object ReactiveFlows {
 
 import ReactiveFlows._
 
-final class ReactiveFlows(createMediator: CreateMediator,
+final class ReactiveFlows(mediator: ActorRef,
+                          replicator: ActorRef,
                           createFlowFacade: CreateFlowFacade,
                           createApi: CreateApi)
     extends Actor
@@ -82,9 +89,7 @@ final class ReactiveFlows(createMediator: CreateMediator,
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
-  private val mediator = createMediator(context)
-
-  private val flowFacade = createFlowFacade(context, mediator)
+  private val flowFacade = createFlowFacade(context, mediator, replicator)
 
   private val api = {
     val config  = context.system.settings.config
