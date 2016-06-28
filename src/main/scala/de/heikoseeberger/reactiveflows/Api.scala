@@ -17,6 +17,7 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Status }
+import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.http.scaladsl.model.StatusCodes.{
@@ -35,7 +36,6 @@ import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpcirce.CirceSupport
 import de.heikoseeberger.akkasse.{ EventStreamMarshalling, ServerSentEvent }
-import de.heikoseeberger.reactiveflows.PubSubMediator.Subscribe
 import java.net.InetSocketAddress
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
