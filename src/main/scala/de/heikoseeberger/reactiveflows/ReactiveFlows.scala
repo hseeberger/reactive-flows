@@ -31,9 +31,10 @@ import scala.concurrent.duration.{ Duration, FiniteDuration }
 
 object ReactiveFlows {
 
-  type CreateFlowFacade = ActorContext => ActorRef
-  type CreateApi = (ActorContext, String, Int, ActorRef,
-                    FiniteDuration) => ActorRef
+  type CreateMediator   = ActorContext => ActorRef
+  type CreateFlowFacade = (ActorContext, ActorRef) => ActorRef
+  type CreateApi = (ActorContext, String, Int, ActorRef, FiniteDuration,
+                    ActorRef, Int) => ActorRef
 
   private val jvmArg = """-D(\S+)=(\S+)""".r
 
@@ -44,41 +45,57 @@ object ReactiveFlows {
     Await.ready(system.whenTerminated, Duration.Inf)
   }
 
-  def apply(createFlowFacade: CreateFlowFacade = createFlowFacade,
+  def apply(createMediator: CreateMediator = createMediator,
+            createFlowFacade: CreateFlowFacade = createFlowFacade,
             createApi: CreateApi = createApi): Props =
-    Props(new ReactiveFlows(createFlowFacade, createApi))
+    Props(new ReactiveFlows(createMediator, createFlowFacade, createApi))
 
-  private def createFlowFacade(context: ActorContext) =
-    context.actorOf(FlowFacade(), FlowFacade.Name)
+  private def createMediator(context: ActorContext) =
+    context.actorOf(PubSubMediator(), PubSubMediator.Name)
+
+  private def createFlowFacade(context: ActorContext, mediator: ActorRef) =
+    context.actorOf(FlowFacade(mediator), FlowFacade.Name)
 
   private def createApi(context: ActorContext,
                         address: String,
                         port: Int,
                         flowFacade: ActorRef,
-                        flowFacadeTimeout: FiniteDuration) =
-    context
-      .actorOf(Api(address, port, flowFacade, flowFacadeTimeout), Api.Name)
+                        flowFacadeTimeout: FiniteDuration,
+                        mediator: ActorRef,
+                        eventBufferSize: Int) =
+    context.actorOf(Api(address,
+                        port,
+                        flowFacade,
+                        flowFacadeTimeout,
+                        mediator,
+                        eventBufferSize),
+                    Api.Name)
 }
 
 import ReactiveFlows._
 
-final class ReactiveFlows(createFlowFacade: CreateFlowFacade,
+final class ReactiveFlows(createMediator: CreateMediator,
+                          createFlowFacade: CreateFlowFacade,
                           createApi: CreateApi)
     extends Actor
     with ActorLogging {
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
-  private val flowFacade = createFlowFacade(context)
+  private val mediator = createMediator(context)
+
+  private val flowFacade = createFlowFacade(context, mediator)
 
   private val api = {
     val config  = context.system.settings.config
     val address = config.getString("reactive-flows.api.address")
     val port    = config.getInt("reactive-flows.api.port")
     val timeout = config.getDuration("reactive-flows.api.flow-facade-timeout")
-    createApi(context, address, port, flowFacade, timeout)
+    val size    = config.getInt("reactive-flows.api.event-buffer-size")
+    createApi(context, address, port, flowFacade, timeout, mediator, size)
   }
 
+  context.watch(mediator)
   context.watch(flowFacade)
   context.watch(api)
   log.info("ReactiveFlows up and running")

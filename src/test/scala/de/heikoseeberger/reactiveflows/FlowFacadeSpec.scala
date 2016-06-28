@@ -25,13 +25,15 @@ class FlowFacadeSpec extends BaseAkkaSpec {
   import ActorDSL._
   import Flow.{ AddMessage => _, GetMessages => _, _ }
   import FlowFacade._
+  import PubSubMediator._
 
   "FlowFacade" should {
     "correctly handle GetFlows, AddFlow and RemoveFlow commands" in {
       val sender             = TestProbe()
       implicit val senderRef = sender.ref
 
-      val flowFacade = system.actorOf(FlowFacade())
+      val mediator   = TestProbe()
+      val flowFacade = system.actorOf(FlowFacade(mediator.ref))
 
       flowFacade ! GetFlows
       sender.expectMsg(Flows(Set.empty))
@@ -42,6 +44,9 @@ class FlowFacadeSpec extends BaseAkkaSpec {
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
       sender.expectActor(flowFacade.path / "akka")
+      mediator.expectMsg(
+        Publish(className[FlowEvent], FlowAdded(FlowDesc("akka", "Akka")))
+      )
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowExists(FlowDesc("akka", "Akka")))
@@ -55,6 +60,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowRemoved("akka"))
       sender.expectNoActor(flowFacade.path / "akka")
+      mediator.expectMsg(Publish(className[FlowEvent], FlowRemoved("akka")))
 
       flowFacade ! GetFlows
       sender.expectMsg(Flows(Set.empty))
@@ -82,11 +88,12 @@ class FlowFacadeSpec extends BaseAkkaSpec {
           }
         }
       })
-      def createFlow(context: ActorContext, name: String) =
+      def createFlow(context: ActorContext, name: String, m: ActorRef) =
         actor(context, name)(new Act {
           become { case message => flow.ref.forward(message) }
         })
-      val flowFacade = system.actorOf(FlowFacade(createFlow))
+      val flowFacade =
+        system.actorOf(FlowFacade(system.deadLetters, createFlow))
 
       flowFacade ! GetMessages("", Long.MaxValue, Short.MaxValue)
       sender.expectMsg(BadCommand("name empty"))
