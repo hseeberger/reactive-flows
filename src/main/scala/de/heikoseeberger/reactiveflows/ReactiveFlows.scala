@@ -31,7 +31,9 @@ import scala.concurrent.duration.{ Duration, FiniteDuration }
 
 object ReactiveFlows {
 
-  type CreateApi = (ActorContext, String, Int) => ActorRef
+  type CreateFlowFacade = ActorContext => ActorRef
+  type CreateApi = (ActorContext, String, Int, ActorRef,
+                    FiniteDuration) => ActorRef
 
   private val jvmArg = """-D(\S+)=(\S+)""".r
 
@@ -42,28 +44,42 @@ object ReactiveFlows {
     Await.ready(system.whenTerminated, Duration.Inf)
   }
 
-  def apply(createApi: CreateApi = createApi): Props =
-    Props(new ReactiveFlows(createApi))
+  def apply(createFlowFacade: CreateFlowFacade = createFlowFacade,
+            createApi: CreateApi = createApi): Props =
+    Props(new ReactiveFlows(createFlowFacade, createApi))
 
-  private def createApi(context: ActorContext, address: String, port: Int) =
-    context.actorOf(Api(address, port), Api.Name)
+  private def createFlowFacade(context: ActorContext) =
+    context.actorOf(FlowFacade(), FlowFacade.Name)
+
+  private def createApi(context: ActorContext,
+                        address: String,
+                        port: Int,
+                        flowFacade: ActorRef,
+                        flowFacadeTimeout: FiniteDuration) =
+    context
+      .actorOf(Api(address, port, flowFacade, flowFacadeTimeout), Api.Name)
 }
 
 import ReactiveFlows._
 
-final class ReactiveFlows(createApi: CreateApi)
+final class ReactiveFlows(createFlowFacade: CreateFlowFacade,
+                          createApi: CreateApi)
     extends Actor
     with ActorLogging {
 
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
+  private val flowFacade = createFlowFacade(context)
+
   private val api = {
     val config  = context.system.settings.config
     val address = config.getString("reactive-flows.api.address")
     val port    = config.getInt("reactive-flows.api.port")
-    createApi(context, address, port)
+    val timeout = config.getDuration("reactive-flows.api.flow-facade-timeout")
+    createApi(context, address, port, flowFacade, timeout)
   }
 
+  context.watch(flowFacade)
   context.watch(api)
   log.info("ReactiveFlows up and running")
 
