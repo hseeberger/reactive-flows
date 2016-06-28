@@ -16,10 +16,22 @@
 
 package de.heikoseeberger
 
+import akka.actor.ActorContext
+import java.time.{ Duration => JavaDuration }
+import scala.concurrent.duration.{ FiniteDuration, NANOSECONDS }
+
 package object reactiveflows {
 
   type Traversable[+A] = scala.collection.immutable.Traversable[A]
   type Iterable[+A]    = scala.collection.immutable.Iterable[A]
   type Seq[+A]         = scala.collection.immutable.Seq[A]
   type IndexedSeq[+A]  = scala.collection.immutable.IndexedSeq[A]
+
+  final case class BadCommand(message: String)
+
+  def badCommand(message: String)(implicit context: ActorContext): Unit =
+    context.sender() ! BadCommand(message)
+
+  implicit def javaDurationToScala(duration: JavaDuration): FiniteDuration =
+    FiniteDuration(duration.toNanos, NANOSECONDS)
 }
