@@ -17,7 +17,10 @@
 package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ Actor, ActorContext, ActorLogging, ActorRef, Props }
-import de.heikoseeberger.reactiveflows.PubSubMediator.Publish
+import akka.cluster.Cluster
+import akka.cluster.ddata.Replicator.{ Changed, Subscribe }
+import akka.cluster.ddata.{ LWWMap, LWWMapKey, Replicator }
+import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8
 
@@ -46,8 +49,15 @@ object FlowFacade {
 
   final val Name = "flow-facade"
 
-  def apply(mediator: ActorRef, createFlow: CreateFlow = createFlow): Props =
-    Props(new FlowFacade(mediator, createFlow))
+  val flows = LWWMapKey[FlowDesc]("flows")
+
+  private val updateFlowData =
+    Replicator.Update(flows, LWWMap.empty[FlowDesc], Replicator.WriteLocal) _
+
+  def apply(mediator: ActorRef,
+            replicator: ActorRef,
+            createFlow: CreateFlow = createFlow): Props =
+    Props(new FlowFacade(mediator, replicator, createFlow))
 
   private def createFlow(context: ActorContext,
                          name: String,
@@ -58,12 +68,18 @@ object FlowFacade {
     URLEncoder.encode(label.toLowerCase, UTF_8.name)
 }
 
-final class FlowFacade(mediator: ActorRef, createFlow: FlowFacade.CreateFlow)
+final class FlowFacade(mediator: ActorRef,
+                       replicator: ActorRef,
+                       createFlow: FlowFacade.CreateFlow)
     extends Actor
     with ActorLogging {
   import FlowFacade._
 
+  private implicit val cluster = Cluster(context.system)
+
   private var flowsByName = Map.empty[String, FlowDesc]
+
+  replicator ! Subscribe(flows, self)
 
   override def receive = {
     case GetFlows => sender() ! Flows(flowsByName.valuesIterator.to[Set])
@@ -79,6 +95,8 @@ final class FlowFacade(mediator: ActorRef, createFlow: FlowFacade.CreateFlow)
 
     case AddMessage("", _) => badCommand("name empty")
     case am: AddMessage    => handleAddMessage(am)
+
+    case c @ Changed(`flows`) => flowsByName = c.get(flows).entries
   }
 
   protected def forwardToFlow(name: String, message: Any): Unit =
@@ -88,7 +106,8 @@ final class FlowFacade(mediator: ActorRef, createFlow: FlowFacade.CreateFlow)
     import addFlow._
     withUnknownFlow(label) { name =>
       val desc = FlowDesc(name, label)
-      flowsByName += name -> desc
+      flowsByName += name                   -> desc
+      replicator ! updateFlowData(_ + (name -> desc))
       createFlow(context, name, mediator)
       val flowAdded = FlowAdded(desc)
       mediator ! Publish(className[FlowEvent], flowAdded)
@@ -101,6 +120,7 @@ final class FlowFacade(mediator: ActorRef, createFlow: FlowFacade.CreateFlow)
     import removeFlow._
     withExistingFlow(name) {
       flowsByName -= name
+      replicator ! updateFlowData(_ - name)
       context.child(name).foreach(context.stop)
       val flowRemoved = FlowRemoved(name)
       mediator ! Publish(className[FlowEvent], flowRemoved)
