@@ -20,13 +20,15 @@ import akka.testkit.TestProbe
 
 class FlowSpec extends BaseAkkaSpec {
   import Flow._
+  import PubSubMediator._
 
   "Flow" should {
     "correctly handle GetMessage and AddMessage commands" in {
       val sender             = TestProbe()
       implicit val senderRef = sender.ref
 
-      val flow     = system.actorOf(Flow())
+      val mediator = TestProbe()
+      val flow     = system.actorOf(Flow(mediator.ref))
       val flowName = flow.path.name
 
       flow ! GetMessages(-1, 1)
@@ -45,6 +47,10 @@ class FlowSpec extends BaseAkkaSpec {
       val time0 = sender.expectMsgPF() {
         case MessageAdded(`flowName`, Message(0, "Akka", time)) => time
       }
+      mediator.expectMsg(
+        Publish(className[MessageEvent],
+                MessageAdded(`flowName`, Message(0, "Akka", time0)))
+      )
 
       flow ! GetMessages(0, 1)
       sender.expectMsg(Messages(Vector(Message(0, "Akka", time0))))
