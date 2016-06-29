@@ -18,6 +18,7 @@ package de.heikoseeberger.reactiveflows
 
 import akka.cluster.Cluster
 import akka.cluster.ddata.DistributedData
+import akka.cluster.sharding.ClusterSharding
 import akka.remote.testkit.{ MultiNodeConfig, MultiNodeSpec }
 import akka.testkit.{ TestDuration, TestProbe }
 import com.typesafe.config.ConfigFactory
@@ -48,6 +49,7 @@ abstract class MultiNodeFlowFacadeSpec
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll {
+  import Flow.{ AddMessage => _, GetMessages => _, _ }
   import FlowFacade._
   import FlowFacadeSpecConfig._
 
@@ -59,13 +61,24 @@ abstract class MultiNodeFlowFacadeSpec
         }
       }
 
+      val flowShardRegion = Flow.startSharding(system, system.deadLetters, 20)
+
       enterBarrier("ready")
 
       val flowFacade = system.actorOf(
-          FlowFacade(system.deadLetters, DistributedData(system).replicator)
+          FlowFacade(system.deadLetters,
+                     DistributedData(system).replicator,
+                     flowShardRegion)
       )
       runOn(node1) {
+        val sender             = TestProbe()
+        implicit val senderRef = sender.ref
         flowFacade ! AddFlow("Akka")
+        sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
+        flowFacade ! FlowFacade.AddMessage("akka", "Akka")
+        sender.expectMsgPF() {
+          case MessageAdded("akka", Flow.Message(0, "Akka", _)) => ()
+        }
       }
       runOn(node2) {
         val sender             = TestProbe()
@@ -75,6 +88,17 @@ abstract class MultiNodeFlowFacadeSpec
             flowFacade ! GetFlows
             sender.expectMsg(Flows(Set(FlowDesc("akka", "Akka"))))
           }
+        }
+      }
+
+      enterBarrier("message-added")
+
+      runOn(node2) {
+        val sender             = TestProbe()
+        implicit val senderRef = sender.ref
+        flowFacade ! GetMessages("akka", 99, 99)
+        sender.expectMsgPF() {
+          case Messages(Vector(Message(0, "Akka", _))) => ()
         }
       }
     }
