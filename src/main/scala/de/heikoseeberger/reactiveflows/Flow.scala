@@ -16,10 +16,11 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props }
+import akka.actor.{ ActorLogging, ActorRef, ActorSystem, Props }
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.cluster.sharding.ShardRegion.{ ExtractEntityId, ExtractShardId }
 import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings }
+import akka.persistence.PersistentActor
 import java.time.LocalDateTime
 import scala.math.{ max, min }
 
@@ -56,12 +57,16 @@ object Flow {
   }
 }
 
-final class Flow(mediator: ActorRef) extends Actor with ActorLogging {
+final class Flow(mediator: ActorRef)
+    extends PersistentActor
+    with ActorLogging {
   import Flow._
+
+  override val persistenceId = s"flow-${ self.path.name }"
 
   private var messages = Vector.empty[Message]
 
-  override def receive = {
+  override def receiveCommand = {
     case GetMessages(id, _) if id < 0        => badCommand("id < 0")
     case GetMessages(_, count) if count <= 0 => badCommand("count <= 0")
     case gm: GetMessages                     => handleGetMessages(gm)
@@ -70,6 +75,10 @@ final class Flow(mediator: ActorRef) extends Actor with ActorLogging {
     case am: AddMessage => handleAddMessage(am)
 
     case Stop => context.stop(self)
+  }
+
+  override def receiveRecover = {
+    case MessageAdded(_, message) => messages +:= message
   }
 
   private def handleGetMessages(getMessages: GetMessages) = {
@@ -83,10 +92,11 @@ final class Flow(mediator: ActorRef) extends Actor with ActorLogging {
   private def handleAddMessage(addMessage: AddMessage) = {
     import addMessage._
     val message = Message(messages.size, text, LocalDateTime.now())
-    messages +:= message
-    val messageAdded = MessageAdded(self.path.name, message)
-    mediator ! Publish(className[MessageEvent], messageAdded)
-    log.info("Message starting with '{}' added", text.take(42))
-    sender() ! messageAdded
+    persist(MessageAdded(self.path.name, message)) { messageAdded =>
+      receiveRecover(messageAdded)
+      mediator ! Publish(className[MessageEvent], messageAdded)
+      log.info("Message starting with '{}' added", text.take(42))
+      sender() ! messageAdded
+    }
   }
 }
