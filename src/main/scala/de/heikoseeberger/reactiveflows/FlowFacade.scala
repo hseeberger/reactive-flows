@@ -56,8 +56,9 @@ object FlowFacade {
 
   def apply(mediator: ActorRef,
             replicator: ActorRef,
+            flowShardRegion: ActorRef,
             createFlow: CreateFlow = createFlow): Props =
-    Props(new FlowFacade(mediator, replicator, createFlow))
+    Props(new FlowFacade(mediator, replicator, flowShardRegion, createFlow))
 
   private def createFlow(context: ActorContext,
                          name: String,
@@ -70,6 +71,7 @@ object FlowFacade {
 
 final class FlowFacade(mediator: ActorRef,
                        replicator: ActorRef,
+                       flowShardRegion: ActorRef,
                        createFlow: FlowFacade.CreateFlow)
     extends Actor
     with ActorLogging {
@@ -100,7 +102,7 @@ final class FlowFacade(mediator: ActorRef,
   }
 
   protected def forwardToFlow(name: String, message: Any): Unit =
-    context.child(name).foreach(_.forward(message))
+    flowShardRegion.forward(name -> message)
 
   private def handleAddFlow(addFlow: AddFlow) = {
     import addFlow._
@@ -108,7 +110,6 @@ final class FlowFacade(mediator: ActorRef,
       val desc = FlowDesc(name, label)
       flowsByName += name                   -> desc
       replicator ! updateFlowData(_ + (name -> desc))
-      createFlow(context, name, mediator)
       val flowAdded = FlowAdded(desc)
       mediator ! Publish(className[FlowEvent], flowAdded)
       log.info("Flow with name '{}' added", name)
@@ -121,7 +122,7 @@ final class FlowFacade(mediator: ActorRef,
     withExistingFlow(name) {
       flowsByName -= name
       replicator ! updateFlowData(_ - name)
-      context.child(name).foreach(context.stop)
+      forwardToFlow(name, Flow.Stop)
       val flowRemoved = FlowRemoved(name)
       mediator ! Publish(className[FlowEvent], flowRemoved)
       log.info("Flow with name '{}' removed", name)
