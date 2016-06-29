@@ -16,7 +16,7 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ ActorContext, ActorDSL, ActorRef }
+import akka.actor.ActorRef
 import akka.cluster.Cluster
 import akka.cluster.ddata.Replicator.{ Changed, Subscribe }
 import akka.cluster.ddata.{ DistributedData, LWWMapKey }
@@ -26,7 +26,6 @@ import akka.testkit.TestProbe
 import java.time.LocalDateTime
 
 class FlowFacadeSpec extends BaseAkkaSpec {
-  import ActorDSL._
   import Flow.{ AddMessage => _, GetMessages => _, _ }
   import FlowFacade._
 
@@ -39,7 +38,9 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       val mediator   = TestProbe()
       val replicator = TestProbe()
-      val flowFacade = system.actorOf(FlowFacade(mediator.ref, replicator.ref))
+      val flowFacade = system.actorOf(
+        FlowFacade(mediator.ref, replicator.ref, system.deadLetters)
+      )
 
       replicator.expectMsg(Subscribe(LWWMapKey[FlowDesc]("flows"), flowFacade))
 
@@ -51,7 +52,6 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
-      sender.expectActor(flowFacade.path / "akka")
       mediator.expectMsg(
         Publish(className[FlowEvent], FlowAdded(FlowDesc("akka", "Akka")))
       )
@@ -67,7 +67,6 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowRemoved("akka"))
-      sender.expectNoActor(flowFacade.path / "akka")
       mediator.expectMsg(Publish(className[FlowEvent], FlowRemoved("akka")))
 
       flowFacade ! GetFlows
@@ -83,25 +82,21 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       val time = LocalDateTime.now()
 
-      val flow = TestProbe()
-      flow.setAutoPilot(new AutoPilot {
+      val flowShardRegion = TestProbe()
+      flowShardRegion.setAutoPilot(new AutoPilot {
         def run(sender: ActorRef, msg: Any) = {
           msg match {
-            case Flow.GetMessages(_, _) =>
+            case ("akka", Flow.GetMessages(Long.MaxValue, Short.MaxValue)) =>
               sender ! Messages(Vector(Message(0, "Akka rocks!", time)))
               KeepRunning
-            case Flow.AddMessage(text) =>
+            case ("akka", Flow.AddMessage(text)) =>
               sender ! Flow.MessageAdded("akka", Message(1, text, time))
               KeepRunning
           }
         }
       })
-      def createFlow(context: ActorContext, name: String, m: ActorRef) =
-        actor(context, name)(new Act {
-          become { case message => flow.ref.forward(message) }
-        })
       val flowFacade = system.actorOf(
-        FlowFacade(system.deadLetters, system.deadLetters, createFlow)
+        FlowFacade(system.deadLetters, system.deadLetters, flowShardRegion.ref)
       )
 
       flowFacade ! GetMessages("", Long.MaxValue, Short.MaxValue)
@@ -131,8 +126,9 @@ class FlowFacadeSpec extends BaseAkkaSpec {
     "correctly update DistributedData" in {
       val replicator = DistributedData(system).replicator
       val subscriber = TestProbe()
-      val flowFacade =
-        system.actorOf(FlowFacade(system.deadLetters, replicator))
+      val flowFacade = system.actorOf(
+        FlowFacade(system.deadLetters, replicator, system.deadLetters)
+      )
       replicator ! Subscribe(flows, subscriber.ref)
 
       flowFacade ! AddFlow("Akka")
