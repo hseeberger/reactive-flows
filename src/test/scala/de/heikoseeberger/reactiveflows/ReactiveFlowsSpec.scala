@@ -25,8 +25,11 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
 
   "Creating a ReactiveFlows actor" should {
     "result in creating PubSubMediator, FlowFacade and Api child actors" in {
-      val reactiveFlows =
-        system.actorOf(ReactiveFlows(system.deadLetters, system.deadLetters))
+      val reactiveFlows = system.actorOf(
+        ReactiveFlows(system.deadLetters,
+                      system.deadLetters,
+                      system.deadLetters)
+      )
       TestProbe().expectActor(reactiveFlows.path / FlowFacade.Name)
       TestProbe().expectActor(reactiveFlows.path / Api.Name)
     }
@@ -38,7 +41,8 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       system.actorOf(
         ReactiveFlows(system.deadLetters,
                       system.deadLetters,
-                      (context, _, _) => context.actorOf(terminatingActor),
+                      system.deadLetters,
+                      (context, _, _, _) => context.actorOf(terminatingActor),
                       (context, _, _, _, _, _,
                        _) => context.actorOf(Props.empty))
       )
@@ -50,7 +54,8 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       system.actorOf(
         ReactiveFlows(system.deadLetters,
                       system.deadLetters,
-                      (context, _, _) => context.actorOf(Props.empty),
+                      system.deadLetters,
+                      (context, _, _, _) => context.actorOf(Props.empty),
                       (context, _, _, _, _, _,
                        _) => context.actorOf(terminatingActor))
       )
@@ -62,7 +67,8 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       system.actorOf(
         ReactiveFlows(system.deadLetters,
                       system.deadLetters,
-                      (context, _, _) => context.actorOf(faultyActor),
+                      system.deadLetters,
+                      (context, _, _, _) => context.actorOf(faultyActor),
                       (context, _, _, _, _, _,
                        _) => context.actorOf(Props.empty))
       )
@@ -74,7 +80,8 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
       system.actorOf(
         ReactiveFlows(system.deadLetters,
                       system.deadLetters,
-                      (context, _, _) => context.actorOf(Props.empty),
+                      system.deadLetters,
+                      (context, _, _, _) => context.actorOf(Props.empty),
                       (context, _, _, _, _, _,
                        _) => context.actorOf(faultyActor))
       )
