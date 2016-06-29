@@ -85,5 +85,14 @@ class FlowSpec extends BaseAkkaSpec {
                           Message(0, "Akka", time0)))
       )
     }
+
+    "stop on receiving Stop" in {
+      val probe = TestProbe()
+      val flow  = system.actorOf(Flow(system.deadLetters))
+
+      probe.watch(flow)
+      flow ! Stop
+      probe.expectTerminated(flow)
+    }
   }
 }

@@ -16,8 +16,10 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, Props }
+import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props }
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
+import akka.cluster.sharding.ShardRegion.{ ExtractEntityId, ExtractShardId }
+import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings }
 import java.time.LocalDateTime
 import scala.math.{ max, min }
 
@@ -34,8 +36,24 @@ object Flow {
   final case class MessageAdded(name: String, message: Message)
       extends MessageEvent
 
+  case object Stop
+
   def apply(mediator: ActorRef): Props =
     Props(new Flow(mediator))
+
+  def startSharding(system: ActorSystem,
+                    mediator: ActorRef,
+                    shardCount: Int): Unit = {
+    val entityId: ExtractEntityId = { case (n: String, m) => (n, m) }
+    val shardId: ExtractShardId = {
+      case (n: String, _) => (n.hashCode % shardCount).toString
+    }
+    ClusterSharding(system).start(className[Flow],
+                                  Flow(mediator),
+                                  ClusterShardingSettings(system),
+                                  entityId,
+                                  shardId)
+  }
 }
 
 final class Flow(mediator: ActorRef) extends Actor with ActorLogging {
@@ -50,6 +68,8 @@ final class Flow(mediator: ActorRef) extends Actor with ActorLogging {
 
     case AddMessage("") => badCommand("text empty")
     case am: AddMessage => handleAddMessage(am)
+
+    case Stop => context.stop(self)
   }
 
   private def handleGetMessages(getMessages: GetMessages) = {
