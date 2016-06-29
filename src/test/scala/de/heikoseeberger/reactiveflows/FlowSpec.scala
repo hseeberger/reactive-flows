@@ -16,6 +16,7 @@
 
 package de.heikoseeberger.reactiveflows
 
+import akka.actor.ActorDSL
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.testkit.TestProbe
 
