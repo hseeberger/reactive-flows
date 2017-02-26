@@ -33,23 +33,18 @@ import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{ StatusCodes, Uri }
 import akka.http.scaladsl.testkit.RouteTest
 import akka.http.scaladsl.testkit.TestFrameworkInterface.Scalatest
+import akka.stream.scaladsl.Source
 import akka.testkit.TestActor.{ AutoPilot, NoAutoPilot }
 import akka.testkit.{ TestDuration, TestProbe }
 import de.heikoseeberger.akkahttpcirce.CirceSupport
-import de.heikoseeberger.akkasse.{ EventStream, ServerSentEvent }
-import de.heikoseeberger.akkasse.client.EventStreamUnmarshalling
+import de.heikoseeberger.akkasse.{ EventStreamUnmarshalling, ServerSentEvent }
 import io.circe.parser.decode
 import java.time.LocalDateTime
 import org.scalatest.{ Matchers, WordSpec }
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
-class ApiSpec
-    extends WordSpec
-    with Matchers
-    with RouteTest
-    with Scalatest
-    with RequestBuilding {
+class ApiSpec extends WordSpec with Matchers with RouteTest with Scalatest with RequestBuilding {
   import Api._
   import EventStreamUnmarshalling._
   import Flow.{ AddMessage => _, GetMessages => _, _ }
@@ -84,10 +79,7 @@ class ApiSpec
     }
 
     "respond with OK upon a 'GET /test.html'" in {
-      Get("/test.html") ~> route(system.deadLetters,
-                                 timeout,
-                                 system.deadLetters,
-                                 99) ~> check {
+      Get("/test.html") ~> route(system.deadLetters, timeout, system.deadLetters, 99) ~> check {
         status shouldBe OK
         responseAs[String].trim shouldBe "test"
       }
@@ -127,10 +119,7 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Post("/flows", AddFlow("")) ~> route(flowFacade.ref,
-                                           timeout,
-                                           system.deadLetters,
-                                           99) ~> check {
+      Post("/flows", AddFlow("")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe BadRequest
         responseAs[BadCommand] shouldBe BadCommand(emptyLabel)
       }
@@ -147,10 +136,7 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref,
-                                               timeout,
-                                               system.deadLetters,
-                                               99) ~> check {
+      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe Conflict
         responseAs[FlowExists] shouldBe flowExists
       }
@@ -167,10 +153,7 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref,
-                                               timeout,
-                                               system.deadLetters,
-                                               99) ~> check {
+      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe Created
         responseAs[FlowAdded] shouldBe flowAdded
       }
@@ -187,10 +170,7 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Delete("/flows/unknown") ~> route(flowFacade.ref,
-                                        timeout,
-                                        system.deadLetters,
-                                        99) ~> check {
+      Delete("/flows/unknown") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
@@ -207,10 +187,7 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Delete("/flows/akka") ~> route(flowFacade.ref,
-                                     timeout,
-                                     system.deadLetters,
-                                     99) ~> check {
+      Delete("/flows/akka") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NoContent
       }
     }
@@ -226,10 +203,7 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Get("/flows/unknown/messages?id=1") ~> route(flowFacade.ref,
-                                                   timeout,
-                                                   system.deadLetters,
-                                                   99) ~> check {
+      Get("/flows/unknown/messages?id=1") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
@@ -246,10 +220,7 @@ class ApiSpec
               NoAutoPilot
           }
       })
-      Get("/flows/akka/messages?count=2") ~> route(flowFacade.ref,
-                                                   timeout,
-                                                   system.deadLetters,
-                                                   99) ~> check {
+      Get("/flows/akka/messages?count=2") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe OK
         responseAs[Seq[Message]] shouldBe messages
       }
@@ -315,7 +286,7 @@ class ApiSpec
       val angularJsFlow = FlowDesc("angularjs", "AngularJS")
       mediator.setAutoPilot(new AutoPilot {
         val flowEventTopic = className[FlowEvent]
-        def run(sender: ActorRef, msg: Any) = {
+        def run(sender: ActorRef, msg: Any) =
           msg match {
             case Subscribe(`flowEventTopic`, _, source) =>
               source ! FlowFacade.FlowAdded(akkaFlow)
@@ -324,18 +295,19 @@ class ApiSpec
                 .Success(NotUsed) // Completes the Source.actorRef!
               NoAutoPilot
           }
-        }
       })
       val request = Get("/flow-events")
       request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
         status shouldBe StatusCodes.OK
         val events =
-          responseAs[EventStream].collect {
-            case ServerSentEvent(Some(data), Some(eventType), _, _) =>
-              (decode[FlowDesc](data), eventType)
-          }.collect {
-            case (Right(messageAdded), eventType) => (messageAdded, eventType)
-          }
+          responseAs[Source[ServerSentEvent, NotUsed]]
+            .collect {
+              case ServerSentEvent(Some(data), Some(eventType), _, _) =>
+                (decode[FlowDesc](data), eventType)
+            }
+            .collect {
+              case (Right(messageAdded), eventType) => (messageAdded, eventType)
+            }
         val result = Await.result(
           events.runFold(Vector.empty[(FlowDesc, String)])(_ :+ _),
           1.second.dilated
@@ -351,7 +323,7 @@ class ApiSpec
         MessageAdded("angularjs", Message(1, "Scala", now()))
       mediator.setAutoPilot(new AutoPilot {
         val messageEventTopic = className[MessageEvent]
-        def run(sender: ActorRef, msg: Any) = {
+        def run(sender: ActorRef, msg: Any) =
           msg match {
             case Subscribe(`messageEventTopic`, _, source) =>
               source ! akkaMessageAdded
@@ -359,24 +331,24 @@ class ApiSpec
               source ! Status.Success(None)
               NoAutoPilot
           }
-        }
       })
       val request = Get("/message-events")
       request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
         status shouldBe StatusCodes.OK
         val events =
-          responseAs[EventStream].collect {
-            case ServerSentEvent(Some(data), Some(eventType), _, _) =>
-              (decode[MessageAdded](data), eventType)
-          }.collect {
-            case (Right(messageAdded), eventType) => (messageAdded, eventType)
-          }
+          responseAs[Source[ServerSentEvent, NotUsed]]
+            .collect {
+              case ServerSentEvent(Some(data), Some(eventType), _, _) =>
+                (decode[MessageAdded](data), eventType)
+            }
+            .collect {
+              case (Right(messageAdded), eventType) => (messageAdded, eventType)
+            }
         val result = Await.result(
           events.runFold(Vector.empty[(MessageAdded, String)])(_ :+ _),
           1.second.dilated
         )
-        result shouldBe Vector((akkaMessageAdded, "added"),
-                               (angularJsMessageAdded, "added"))
+        result shouldBe Vector((akkaMessageAdded, "added"), (angularJsMessageAdded, "added"))
       }
     }
   }

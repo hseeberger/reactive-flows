@@ -84,7 +84,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       val flowShardRegion = TestProbe()
       flowShardRegion.setAutoPilot(new AutoPilot {
-        def run(sender: ActorRef, msg: Any) = {
+        def run(sender: ActorRef, msg: Any) =
           msg match {
             case ("akka", Flow.GetMessages(Long.MaxValue, Short.MaxValue)) =>
               sender ! Messages(Vector(Message(0, "Akka rocks!", time)))
@@ -93,7 +93,6 @@ class FlowFacadeSpec extends BaseAkkaSpec {
               sender ! Flow.MessageAdded("akka", Message(1, text, time))
               KeepRunning
           }
-        }
       })
       val flowFacade = system.actorOf(
         FlowFacade(system.deadLetters, system.deadLetters, flowShardRegion.ref)
@@ -133,8 +132,7 @@ class FlowFacadeSpec extends BaseAkkaSpec {
 
       flowFacade ! AddFlow("Akka")
       subscriber.expectMsgPF() {
-        case c @ Changed(`flows`)
-            if c.get(flows).entries.keySet == Set("akka") =>
+        case c @ Changed(`flows`) if c.get(flows).entries.keySet == Set("akka") =>
           ()
       }
 

@@ -26,9 +26,7 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
   "Creating a ReactiveFlows actor" should {
     "result in creating PubSubMediator, FlowFacade and Api child actors" in {
       val reactiveFlows = system.actorOf(
-        ReactiveFlows(system.deadLetters,
-                      system.deadLetters,
-                      system.deadLetters)
+        ReactiveFlows(system.deadLetters, system.deadLetters, system.deadLetters)
       )
       TestProbe().expectActor(reactiveFlows.path / FlowFacade.Name)
       TestProbe().expectActor(reactiveFlows.path / Api.Name)
@@ -39,12 +37,13 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
     "terminate the system when its FlowFacade child actor terminates" in {
       implicit val system = ActorSystem()
       system.actorOf(
-        ReactiveFlows(system.deadLetters,
-                      system.deadLetters,
-                      system.deadLetters,
-                      (context, _, _, _) => context.actorOf(terminatingActor),
-                      (context, _, _, _, _, _,
-                       _) => context.actorOf(Props.empty))
+        ReactiveFlows(
+          system.deadLetters,
+          system.deadLetters,
+          system.deadLetters,
+          (context, _, _, _) => context.actorOf(terminatingActor),
+          (context, _, _, _, _, _, _) => context.actorOf(Props.empty)
+        )
       )
       Await.ready(system.whenTerminated, 3.seconds)
     }
@@ -52,12 +51,13 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
     "terminate the system when its Api child actor terminates" in {
       implicit val system = ActorSystem()
       system.actorOf(
-        ReactiveFlows(system.deadLetters,
-                      system.deadLetters,
-                      system.deadLetters,
-                      (context, _, _, _) => context.actorOf(Props.empty),
-                      (context, _, _, _, _, _,
-                       _) => context.actorOf(terminatingActor))
+        ReactiveFlows(
+          system.deadLetters,
+          system.deadLetters,
+          system.deadLetters,
+          (context, _, _, _) => context.actorOf(Props.empty),
+          (context, _, _, _, _, _, _) => context.actorOf(terminatingActor)
+        )
       )
       Await.ready(system.whenTerminated, 3.seconds)
     }
@@ -65,12 +65,13 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
     "terminate the system when its FlowFacade child actor fails" in {
       implicit val system = ActorSystem()
       system.actorOf(
-        ReactiveFlows(system.deadLetters,
-                      system.deadLetters,
-                      system.deadLetters,
-                      (context, _, _, _) => context.actorOf(faultyActor),
-                      (context, _, _, _, _, _,
-                       _) => context.actorOf(Props.empty))
+        ReactiveFlows(
+          system.deadLetters,
+          system.deadLetters,
+          system.deadLetters,
+          (context, _, _, _) => context.actorOf(faultyActor),
+          (context, _, _, _, _, _, _) => context.actorOf(Props.empty)
+        )
       )
       Await.ready(system.whenTerminated, 3.seconds)
     }
@@ -78,12 +79,13 @@ class ReactiveFlowsSpec extends BaseAkkaSpec {
     "terminate the system when its Api child actor fails" in {
       implicit val system = ActorSystem()
       system.actorOf(
-        ReactiveFlows(system.deadLetters,
-                      system.deadLetters,
-                      system.deadLetters,
-                      (context, _, _, _) => context.actorOf(Props.empty),
-                      (context, _, _, _, _, _,
-                       _) => context.actorOf(faultyActor))
+        ReactiveFlows(
+          system.deadLetters,
+          system.deadLetters,
+          system.deadLetters,
+          (context, _, _, _) => context.actorOf(Props.empty),
+          (context, _, _, _, _, _, _) => context.actorOf(faultyActor)
+        )
       )
       Await.ready(system.whenTerminated, 3.seconds)
     }

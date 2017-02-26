@@ -18,11 +18,7 @@ package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ ActorLogging, ActorRef, ActorSystem, Props }
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
-import akka.cluster.sharding.ShardRegion.{
-  ExtractEntityId,
-  ExtractShardId,
-  Passivate
-}
+import akka.cluster.sharding.ShardRegion.{ ExtractEntityId, ExtractShardId, Passivate }
 import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings }
 import akka.persistence.PersistentActor
 import java.time.LocalDateTime
@@ -38,8 +34,7 @@ object Flow {
   final case class Messages(messages: Vector[Message])
 
   final case class AddMessage(text: String)
-  final case class MessageAdded(name: String, message: Message)
-      extends MessageEvent
+  final case class MessageAdded(name: String, message: Message) extends MessageEvent
 
   case object Stop
   private case object Terminate
@@ -47,9 +42,7 @@ object Flow {
   def apply(mediator: ActorRef): Props =
     Props(new Flow(mediator))
 
-  def startSharding(system: ActorSystem,
-                    mediator: ActorRef,
-                    shardCount: Int): ActorRef = {
+  def startSharding(system: ActorSystem, mediator: ActorRef, shardCount: Int): ActorRef = {
     val entityId: ExtractEntityId = { case (n: String, m) => (n, m) }
     val shardId: ExtractShardId = {
       case (n: String, _) => (n.hashCode.abs % shardCount).toString
@@ -62,9 +55,7 @@ object Flow {
   }
 }
 
-final class Flow(mediator: ActorRef)
-    extends PersistentActor
-    with ActorLogging {
+final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
   import Flow._
 
   override val persistenceId = s"flow-${self.path.name}"

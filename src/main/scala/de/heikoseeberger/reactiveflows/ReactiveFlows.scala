@@ -35,10 +35,8 @@ import scala.concurrent.duration.{ Duration, FiniteDuration }
 
 object ReactiveFlows {
 
-  type CreateFlowFacade = (ActorContext, ActorRef, ActorRef,
-                           ActorRef) => ActorRef
-  type CreateApi = (ActorContext, String, Int, ActorRef, FiniteDuration,
-                    ActorRef, Int) => ActorRef
+  type CreateFlowFacade = (ActorContext, ActorRef, ActorRef, ActorRef) => ActorRef
+  type CreateApi        = (ActorContext, String, Int, ActorRef, FiniteDuration, ActorRef, Int) => ActorRef
 
   private val jvmArg = """-D(\S+)=(\S+)""".r
 
@@ -52,9 +50,7 @@ object ReactiveFlows {
                            mediator,
                            system.settings.config
                              .getInt("reactive-flows.flow-facade.shard-count"))
-      system.actorOf(ReactiveFlows(mediator,
-                                   DistributedData(system).replicator,
-                                   flowShardRegion),
+      system.actorOf(ReactiveFlows(mediator, DistributedData(system).replicator, flowShardRegion),
                      "root")
     }
     Await.ready(system.whenTerminated, Duration.Inf)
@@ -66,19 +62,14 @@ object ReactiveFlows {
             createFlowFacade: CreateFlowFacade = createFlowFacade,
             createApi: CreateApi = createApi): Props =
     Props(
-      new ReactiveFlows(mediator,
-                        replicator,
-                        flowShardRegion,
-                        createFlowFacade,
-                        createApi)
+      new ReactiveFlows(mediator, replicator, flowShardRegion, createFlowFacade, createApi)
     )
 
   private def createFlowFacade(context: ActorContext,
                                mediator: ActorRef,
                                replicator: ActorRef,
                                flowShardRegion: ActorRef) =
-    context.actorOf(FlowFacade(mediator, replicator, flowShardRegion),
-                    FlowFacade.Name)
+    context.actorOf(FlowFacade(mediator, replicator, flowShardRegion), FlowFacade.Name)
 
   private def createApi(context: ActorContext,
                         address: String,
@@ -87,12 +78,7 @@ object ReactiveFlows {
                         flowFacadeTimeout: FiniteDuration,
                         mediator: ActorRef,
                         eventBufferSize: Int) =
-    context.actorOf(Api(address,
-                        port,
-                        flowFacade,
-                        flowFacadeTimeout,
-                        mediator,
-                        eventBufferSize),
+    context.actorOf(Api(address, port, flowFacade, flowFacadeTimeout, mediator, eventBufferSize),
                     Api.Name)
 }
 

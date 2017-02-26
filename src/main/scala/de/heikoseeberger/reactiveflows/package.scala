@@ -19,7 +19,7 @@ package de.heikoseeberger
 import akka.actor.ActorContext
 import java.time.{ Duration => JavaDuration }
 import scala.concurrent.duration.{ FiniteDuration, NANOSECONDS }
-import scala.reflect.{ ClassTag, classTag }
+import scala.reflect.{ classTag, ClassTag }
 
 package object reactiveflows {
 

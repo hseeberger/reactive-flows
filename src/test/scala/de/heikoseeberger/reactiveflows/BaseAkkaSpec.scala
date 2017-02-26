@@ -22,10 +22,7 @@ import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec }
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
-abstract class BaseAkkaSpec
-    extends WordSpec
-    with Matchers
-    with BeforeAndAfterAll {
+abstract class BaseAkkaSpec extends WordSpec with Matchers with BeforeAndAfterAll {
 
   implicit class TestProbeOps(probe: TestProbe) {
 
