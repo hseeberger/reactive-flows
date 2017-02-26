@@ -33,9 +33,9 @@ object FlowFacadeSpecConfig extends MultiNodeConfig {
     commonConfig(ConfigFactory.load())
     val node = role(port.toString)
     nodeConfig(node)(
-        ConfigFactory
-          .parseString(s"akka.remote.netty.tcp.port = $port")
-          .withFallback(ConfigFactory.load())
+      ConfigFactory
+        .parseString(s"akka.remote.netty.tcp.port = $port")
+        .withFallback(ConfigFactory.load())
     )
     node
   }
@@ -66,9 +66,7 @@ abstract class MultiNodeFlowFacadeSpec
       enterBarrier("ready")
 
       val flowFacade = system.actorOf(
-          FlowFacade(system.deadLetters,
-                     DistributedData(system).replicator,
-                     flowShardRegion)
+        FlowFacade(system.deadLetters, DistributedData(system).replicator, flowShardRegion)
       )
       runOn(node1) {
         val sender             = TestProbe()

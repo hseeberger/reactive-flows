@@ -54,12 +54,7 @@ object Api {
             mediator: ActorRef,
             eventBufferSize: Int): Props =
     Props(
-      new Api(address,
-              port,
-              flowFacade,
-              flowFacadeTimeout,
-              mediator,
-              eventBufferSize)
+      new Api(address, port, flowFacade, flowFacadeTimeout, mediator, eventBufferSize)
     )
 
   def route(flowFacade: ActorRef,
@@ -112,8 +107,7 @@ object Api {
         } ~
         path("messages") {
           get {
-            parameters('id.as[Long] ? Long.MaxValue,
-                       'count.as[Short] ? 1.toShort) { (id, count) =>
+            parameters('id.as[Long] ? Long.MaxValue, 'count.as[Short] ? 1.toShort) { (id, count) =>
               onSuccess(flowFacade ? GetMessages(flowName, id, count)) {
                 // BadCommand not possible, because flowName can't be empty!
                 case fu: FlowUnknown => complete(NotFound -> fu)

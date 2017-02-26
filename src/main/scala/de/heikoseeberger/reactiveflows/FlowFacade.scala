@@ -60,9 +60,7 @@ object FlowFacade {
             createFlow: CreateFlow = createFlow): Props =
     Props(new FlowFacade(mediator, replicator, flowShardRegion, createFlow))
 
-  private def createFlow(context: ActorContext,
-                         name: String,
-                         mediator: ActorRef) =
+  private def createFlow(context: ActorContext, name: String, mediator: ActorRef) =
     context.actorOf(Flow(mediator), name)
 
   private def labelToName(label: String) =

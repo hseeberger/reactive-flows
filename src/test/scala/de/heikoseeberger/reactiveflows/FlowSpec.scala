@@ -49,8 +49,7 @@ class FlowSpec extends BaseAkkaSpec {
         case MessageAdded(`flowName`, Message(0, "Akka", time)) => time
       }
       mediator.expectMsg(
-        Publish(className[MessageEvent],
-                MessageAdded(`flowName`, Message(0, "Akka", time0)))
+        Publish(className[MessageEvent], MessageAdded(`flowName`, Message(0, "Akka", time0)))
       )
 
       flow ! GetMessages(0, 1)
