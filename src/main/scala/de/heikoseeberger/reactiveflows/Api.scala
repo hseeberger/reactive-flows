@@ -53,14 +53,12 @@ object Api {
             flowFacadeTimeout: FiniteDuration,
             mediator: ActorRef,
             eventBufferSize: Int): Props =
-    Props(
-      new Api(address, port, flowFacade, flowFacadeTimeout, mediator, eventBufferSize)
-    )
+    Props(new Api(address, port, flowFacade, flowFacadeTimeout, mediator, eventBufferSize))
 
   def route(flowFacade: ActorRef,
             flowFacadeTimeout: Timeout,
             mediator: ActorRef,
-            eventBufferSize: Int)(implicit ec: ExecutionContext) = {
+            eventBufferSize: Int)(implicit ec: ExecutionContext): Route = {
     import CirceSupport._
     import Directives._
     import EventStreamMarshalling._
@@ -71,122 +69,119 @@ object Api {
     import io.circe.syntax._
 
     def assets = {
-      def redirectSingleSlash = pathSingleSlash {
-        get {
-          redirect("index.html", PermanentRedirect)
+      def redirectSingleSlash =
+        pathSingleSlash {
+          get {
+            redirect("index.html", PermanentRedirect)
+          }
         }
-      }
       getFromResourceDirectory("web") ~ redirectSingleSlash
     }
 
-    def flows = pathPrefix("flows") {
+    def flows = {
       implicit val timeout = flowFacadeTimeout
-      pathEnd {
-        get {
-          complete((flowFacade ? GetFlows).mapTo[Flows].map(_.flows))
-        } ~
-        post {
-          entity(as[AddFlow]) { addFlow =>
-            onSuccess(flowFacade ? addFlow) {
-              case bc: BadCommand => complete(BadRequest -> bc)
-              case fe: FlowExists => complete(Conflict -> fe)
-              case fa: FlowAdded  => completeCreated(fa.desc.name, fa)
-            }
-          }
-        }
-      } ~
-      pathPrefix(Segment) { flowName =>
+      pathPrefix("flows") {
         pathEnd {
-          delete {
-            onSuccess(flowFacade ? RemoveFlow(flowName)) {
-              // BadCommand not possible, because flowName can't be empty!
-              case fu: FlowUnknown => complete(NotFound -> fu)
-              case _: FlowRemoved  => complete(NoContent)
+          get {
+            complete((flowFacade ? GetFlows).mapTo[Flows].map(_.flows))
+          } ~
+          post {
+            entity(as[AddFlow]) { addFlow =>
+              onSuccess(flowFacade ? addFlow) {
+                case fa: FlowAdded  => completeCreated(fa.desc.name, fa)
+                case fe: FlowExists => complete(Conflict -> fe)
+                case bc: BadCommand => complete(BadRequest -> bc)
+              }
             }
           }
         } ~
-        path("messages") {
-          get {
-            parameters('id.as[Long] ? Long.MaxValue, 'count.as[Short] ? 1.toShort) { (id, count) =>
-              onSuccess(flowFacade ? GetMessages(flowName, id, count)) {
-                // BadCommand not possible, because flowName can't be empty!
+        pathPrefix(Segment) { flowName =>
+          pathEnd {
+            delete {
+              onSuccess(flowFacade ? RemoveFlow(flowName)) {
+                case _: FlowRemoved  => complete(NoContent)
                 case fu: FlowUnknown => complete(NotFound -> fu)
-                case Messages(msgs)  => complete(msgs)
+                // BadCommand not possible, because flowName can't be empty!
               }
             }
           } ~
-          post {
-            entity(as[AddMessageRequest]) {
-              case AddMessageRequest(text) =>
-                onSuccess(flowFacade ? AddMessage(flowName, text)) {
-                  case bc: BadCommand  => complete(BadRequest -> bc)
-                  case fu: FlowUnknown => complete(NotFound   -> fu)
-                  case ma: MessageAdded =>
-                    completeCreated(ma.message.id, ma)
-                }
+          path("messages") {
+            get {
+              parameters('id.as[Long] ? Long.MaxValue, 'count.as[Short] ? 1.toShort) {
+                (id, count) =>
+                  onSuccess(flowFacade ? GetMessages(flowName, id, count)) {
+                    case Messages(msgs)  => complete(msgs)
+                    case fu: FlowUnknown => complete(NotFound -> fu)
+                    // BadCommand not possible, because flowName can't be empty!
+                  }
+              }
+            } ~
+            post {
+              entity(as[AddMessageRequest]) {
+                case AddMessageRequest(text) =>
+                  onSuccess(flowFacade ? AddMessage(flowName, text)) {
+                    case ma: MessageAdded => completeCreated(ma.message.id.toString, ma)
+                    case fu: FlowUnknown  => complete(NotFound -> fu)
+                    case bc: BadCommand   => complete(BadRequest -> bc)
+                  }
+              }
             }
           }
         }
       }
     }
 
-    def flowEvents = path("flow-events") {
-      get {
-        complete {
-          events(fromFlowEvent)
+    def flowEvents = {
+      def toServerSentEvent(event: FlowEvent) =
+        event match {
+          case FlowAdded(desc)   => ServerSentEvent(desc.asJson.noSpaces, "added")
+          case FlowRemoved(name) => ServerSentEvent(name, "removed")
+        }
+      path("flow-events") {
+        get {
+          complete {
+            events(toServerSentEvent)
+          }
         }
       }
     }
 
-    def messageEvents = path("message-events") {
-      get {
-        complete {
-          events(fromMessageEvent)
+    def messageEvents = {
+      def toServerSentEvent(event: MessageEvent) =
+        event match {
+          case ma: MessageAdded => ServerSentEvent(ma.asJson.noSpaces, "added")
+        }
+      path("message-events") {
+        get {
+          complete {
+            events(toServerSentEvent)
+          }
         }
       }
     }
 
-    def events[A: ClassTag](toServerSentEvent: A => ServerSentEvent) = {
-      def subscribe(subscriber: ActorRef) =
-        mediator ! Subscribe(className[A], subscriber)
+    def completeCreated[A: ToEntityMarshaller](id: String, a: A) =
+      extractUri { uri =>
+        val location = Location(uri.withPath(uri.path / id))
+        complete((Created, Vector(location), a))
+      }
+
+    def events[A: ClassTag](toServerSentEvent: A => ServerSentEvent) =
       Source
         .actorRef[A](eventBufferSize, OverflowStrategy.dropHead)
         .map(toServerSentEvent)
-        .mapMaterializedValue(subscribe)
-    }
-
-    def fromFlowEvent(event: FlowEvent) =
-      event match {
-        case FlowAdded(desc)   => ServerSentEvent(desc.asJson.noSpaces, "added")
-        case FlowRemoved(name) => ServerSentEvent(name, "removed")
-      }
-
-    def fromMessageEvent(event: MessageEvent) =
-      event match {
-        case ma: MessageAdded => ServerSentEvent(ma.asJson.noSpaces, "added")
-      }
+        .mapMaterializedValue(source => mediator ! Subscribe(className[A], source))
 
     assets ~ flows ~ flowEvents ~ messageEvents
   }
-
-  private def completeCreated[A: ToEntityMarshaller](id: Long, a: A): Route =
-    completeCreated(id.toString, a)
-
-  private def completeCreated[A: ToEntityMarshaller](id: String, a: A): Route = {
-    import Directives._
-    extractUri { uri =>
-      val location = Location(uri.withPath(uri.path / id))
-      complete((Created, Vector(location), a))
-    }
-  }
 }
 
-class Api(address: String,
-          port: Int,
-          flowFacade: ActorRef,
-          flowFacadeTimeout: FiniteDuration,
-          mediator: ActorRef,
-          eventBufferSize: Int)
+final class Api(address: String,
+                port: Int,
+                flowFacade: ActorRef,
+                flowFacadeTimeout: FiniteDuration,
+                mediator: ActorRef,
+                eventBufferSize: Int)
     extends Actor
     with ActorLogging {
   import Api._
@@ -195,16 +190,12 @@ class Api(address: String,
   private implicit val mat = ActorMaterializer()
 
   Http(context.system)
-    .bindAndHandle(
-      route(flowFacade, flowFacadeTimeout, mediator, eventBufferSize),
-      address,
-      port
-    )
+    .bindAndHandle(route(flowFacade, flowFacadeTimeout, mediator, eventBufferSize), address, port)
     .pipeTo(self)
 
   override def receive = {
-    case Http.ServerBinding(a) => handleServerBinding(a)
-    case Status.Failure(c)     => handleBindFailure(c)
+    case Http.ServerBinding(address) => handleServerBinding(address)
+    case Status.Failure(cause)       => handleBindFailure(cause)
   }
 
   private def handleServerBinding(address: InetSocketAddress) = {

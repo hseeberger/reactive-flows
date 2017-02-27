@@ -100,7 +100,9 @@ lazy val commonSettings =
       "-target", "1.8"
     ),
     unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
-    unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value)
+    unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value),
+    publishArtifact.in(Compile, packageDoc) := false,
+    publishArtifact.in(Compile, packageSrc) := false
 )
 
 lazy val gitSettings =

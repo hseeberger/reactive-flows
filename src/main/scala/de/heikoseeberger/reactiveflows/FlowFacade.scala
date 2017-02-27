@@ -19,7 +19,7 @@ package de.heikoseeberger.reactiveflows
 import akka.actor.{ Actor, ActorContext, ActorLogging, ActorRef, Props }
 import akka.cluster.Cluster
 import akka.cluster.ddata.Replicator.{ Changed, Subscribe }
-import akka.cluster.ddata.{ LWWMap, LWWMapKey, Replicator }
+import akka.cluster.ddata.{ Key, LWWMap, LWWMapKey, Replicator }
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8
@@ -28,28 +28,34 @@ object FlowFacade {
 
   type CreateFlow = (ActorContext, String, ActorRef) => ActorRef
 
-  final case class FlowDesc(name: String, label: String)
-
   sealed trait FlowEvent
+
+  // == Message protocol – start ==
 
   final case object GetFlows
   final case class Flows(flows: Set[FlowDesc])
 
   final case class AddFlow(label: String)
-  final case class FlowExists(desc: FlowDesc)
   final case class FlowAdded(desc: FlowDesc) extends FlowEvent
+  final case class FlowExists(desc: FlowDesc)
 
   final case class RemoveFlow(name: String)
-  final case class FlowUnknown(name: String)
   final case class FlowRemoved(name: String) extends FlowEvent
+  final case class FlowUnknown(name: String)
 
   final case class GetMessages(name: String, id: Long, count: Short)
+  // Response by Flow
 
   final case class AddMessage(name: String, text: String)
+  // Response by Flow
+
+  // == Message protocol – end ==
+
+  final case class FlowDesc(name: String, label: String)
 
   final val Name = "flow-facade"
 
-  val flows = LWWMapKey[FlowDesc]("flows")
+  val flows: Key[LWWMap[FlowDesc]] = LWWMapKey[FlowDesc]("flows")
 
   private val updateFlowData =
     Replicator.Update(flows, LWWMap.empty[FlowDesc], Replicator.WriteLocal) _
@@ -84,17 +90,17 @@ final class FlowFacade(mediator: ActorRef,
   override def receive = {
     case GetFlows => sender() ! Flows(flowsByName.valuesIterator.to[Set])
 
-    case AddFlow("") => badCommand("label empty")
-    case af: AddFlow => handleAddFlow(af)
+    case AddFlow("")    => badCommand("label empty")
+    case AddFlow(label) => handleAddFlow(label)
 
-    case RemoveFlow("") => badCommand("name empty")
-    case rf: RemoveFlow => handleRemoveFlow(rf)
+    case RemoveFlow("")   => badCommand("name empty")
+    case RemoveFlow(name) => handleRemoveFlow(name)
 
-    case GetMessages("", _, _) => badCommand("name empty")
-    case gm: GetMessages       => handleGetMessages(gm)
+    case GetMessages("", _, _)        => badCommand("name empty")
+    case GetMessages(name, id, count) => handleGetMessages(name, id, count)
 
-    case AddMessage("", _) => badCommand("name empty")
-    case am: AddMessage    => handleAddMessage(am)
+    case AddMessage("", _)      => badCommand("name empty")
+    case AddMessage(name, text) => handleAddMessage(name, text)
 
     case c @ Changed(`flows`) => flowsByName = c.get(flows).entries
   }
@@ -102,9 +108,8 @@ final class FlowFacade(mediator: ActorRef,
   protected def forwardToFlow(name: String, message: Any): Unit =
     flowShardRegion.forward(name -> message)
 
-  private def handleAddFlow(addFlow: AddFlow) = {
-    import addFlow._
-    withUnknownFlow(label) { name =>
+  private def handleAddFlow(label: String) =
+    forUnknownFlow(label) { name =>
       val desc = FlowDesc(name, label)
       flowsByName += name -> desc
       replicator ! updateFlowData(_ + (name -> desc))
@@ -113,11 +118,9 @@ final class FlowFacade(mediator: ActorRef,
       log.info("Flow with name '{}' added", name)
       sender() ! flowAdded
     }
-  }
 
-  private def handleRemoveFlow(removeFlow: RemoveFlow) = {
-    import removeFlow._
-    withExistingFlow(name) {
+  private def handleRemoveFlow(name: String) =
+    forExistingFlow(name) {
       flowsByName -= name
       replicator ! updateFlowData(_ - name)
       forwardToFlow(name, Flow.Stop)
@@ -126,27 +129,22 @@ final class FlowFacade(mediator: ActorRef,
       log.info("Flow with name '{}' removed", name)
       sender() ! flowRemoved
     }
-  }
 
-  private def handleGetMessages(getMessages: GetMessages) = {
-    import getMessages._
-    withExistingFlow(name) {
+  private def handleGetMessages(name: String, id: Long, count: Short) =
+    forExistingFlow(name) {
       forwardToFlow(name, Flow.GetMessages(id, count))
     }
-  }
 
-  private def handleAddMessage(addMessage: AddMessage) = {
-    import addMessage._
-    withExistingFlow(name) {
+  private def handleAddMessage(name: String, text: String) =
+    forExistingFlow(name) {
       forwardToFlow(name, Flow.AddMessage(text))
     }
-  }
 
-  private def withUnknownFlow(label: String)(f: String => Unit) = {
+  private def forUnknownFlow(label: String)(f: String => Unit) = {
     val name = labelToName(label)
     flowsByName.get(name).fold(f(name))(desc => sender() ! FlowExists(desc))
   }
 
-  private def withExistingFlow(name: String)(action: => Unit) =
+  private def forExistingFlow(name: String)(action: => Unit) =
     if (flowsByName.contains(name)) action else sender() ! FlowUnknown(name)
 }

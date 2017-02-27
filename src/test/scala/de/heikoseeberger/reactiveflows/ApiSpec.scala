@@ -33,18 +33,22 @@ import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{ StatusCodes, Uri }
 import akka.http.scaladsl.testkit.RouteTest
 import akka.http.scaladsl.testkit.TestFrameworkInterface.Scalatest
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{ Sink, Source }
 import akka.testkit.TestActor.{ AutoPilot, NoAutoPilot }
 import akka.testkit.{ TestDuration, TestProbe }
 import de.heikoseeberger.akkahttpcirce.CirceSupport
 import de.heikoseeberger.akkasse.{ EventStreamUnmarshalling, ServerSentEvent }
 import io.circe.parser.decode
 import java.time.LocalDateTime
-import org.scalatest.{ Matchers, WordSpec }
-import scala.concurrent.Await
+import org.scalatest.{ AsyncWordSpec, Matchers, Succeeded }
 import scala.concurrent.duration.DurationInt
 
-class ApiSpec extends WordSpec with Matchers with RouteTest with Scalatest with RequestBuilding {
+final class ApiSpec
+    extends AsyncWordSpec
+    with Matchers
+    with RouteTest
+    with Scalatest
+    with RequestBuilding {
   import Api._
   import EventStreamUnmarshalling._
   import Flow.{ AddMessage => _, GetMessages => _, _ }
@@ -64,9 +68,7 @@ class ApiSpec extends WordSpec with Matchers with RouteTest with Scalatest with 
       def createAndWatch() = probe.watch(system.actorOf(apiProps))
       val api1             = createAndWatch()
       val api2             = createAndWatch()
-      probe.expectMsgPF() {
-        case Terminated(actor) if actor == api1 || actor == api2 => ()
-      }
+      probe.expectMsgPF() { case Terminated(actor) if actor == api1 || actor == api2 => Succeeded }
     }
   }
 
@@ -92,118 +94,100 @@ class ApiSpec extends WordSpec with Matchers with RouteTest with Scalatest with 
 
     "ask FlowFacade GetFlows and respond with OK upon a 'GET /flows'" in {
       val flowFacade = TestProbe()
-      val flows =
-        Set(FlowDesc("akka", "Akka"), FlowDesc("angularjs", "AngularJS"))
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
+      val flows      = Set(FlowDesc("akka", "Akka"), FlowDesc("angularjs", "AngularJS"))
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
           msg match {
             case FlowFacade.GetFlows =>
               sender ! Flows(flows)
               NoAutoPilot
-          }
-      })
+        }
+      )
       Get("/flows") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe OK
         responseAs[Set[FlowDesc]] shouldBe flows
       }
     }
 
-    "ask FlowFacade AddFlow and respond with BadRequest upon a 'POST /flows' with an empty label" in {
-      val flowFacade = TestProbe()
-      val emptyLabel = "empty label"
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
-          msg match {
-            case FlowFacade.AddFlow("") =>
-              sender ! BadCommand(emptyLabel)
-              NoAutoPilot
-          }
-      })
-      Post("/flows", AddFlow("")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
-        status shouldBe BadRequest
-        responseAs[BadCommand] shouldBe BadCommand(emptyLabel)
-      }
-    }
-
-    "ask FlowFacade AddFlow and respond with Conflict upon a 'POST /flows' with an existing flow" in {
-      val flowFacade = TestProbe()
-      val flowExists = FlowExists(FlowDesc("akka", "Akka"))
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
-          msg match {
-            case FlowFacade.AddFlow("Akka") =>
-              sender ! flowExists
-              NoAutoPilot
-          }
-      })
-      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
-        status shouldBe Conflict
-        responseAs[FlowExists] shouldBe flowExists
-      }
-    }
-
     "ask FlowFacade AddFlow and respond with Created upon a 'POST /flows'" in {
       val flowFacade = TestProbe()
       val flowAdded  = FlowAdded(FlowDesc("akka", "Akka"))
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
           msg match {
             case AddFlow("Akka") =>
               sender ! flowAdded
               NoAutoPilot
-          }
-      })
+        }
+      )
       Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe Created
         responseAs[FlowAdded] shouldBe flowAdded
       }
     }
 
-    "ask FlowFacade RemoveFlow and respond with NotFound upon a 'DELETE /flows/name' with an unknown name" in {
-      val flowFacade  = TestProbe()
-      val flowUnknown = FlowUnknown("unknown")
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
+    "ask FlowFacade AddFlow and respond with Conflict upon a 'POST /flows' with an existing flow" in {
+      val flowFacade = TestProbe()
+      val flowExists = FlowExists(FlowDesc("akka", "Akka"))
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.RemoveFlow("unknown") =>
-              sender ! flowUnknown
+            case FlowFacade.AddFlow("Akka") =>
+              sender ! flowExists
               NoAutoPilot
-          }
-      })
-      Delete("/flows/unknown") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
-        status shouldBe NotFound
-        responseAs[FlowUnknown] shouldBe flowUnknown
+        }
+      )
+      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+        status shouldBe Conflict
+        responseAs[FlowExists] shouldBe flowExists
+      }
+    }
+
+    "ask FlowFacade AddFlow and respond with BadRequest upon a 'POST /flows' with an empty label" in {
+      val flowFacade = TestProbe()
+      val emptyLabel = "empty label"
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
+          msg match {
+            case FlowFacade.AddFlow("") =>
+              sender ! BadCommand(emptyLabel)
+              NoAutoPilot
+        }
+      )
+      Post("/flows", AddFlow("")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+        status shouldBe BadRequest
+        responseAs[BadCommand] shouldBe BadCommand(emptyLabel)
       }
     }
 
     "ask FlowFacade RemoveFlow and respond with NoContent upon a 'DELETE /flows/name'" in {
       val flowFacade  = TestProbe()
       val flowRemoved = FlowRemoved("akka")
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
           msg match {
             case FlowFacade.RemoveFlow("akka") =>
               sender ! flowRemoved
               NoAutoPilot
-          }
-      })
+        }
+      )
       Delete("/flows/akka") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NoContent
       }
     }
 
-    "ask FlowFacade GetMessages and respond with NotFound upon a 'GET /flows/name/messages' with an unknown name" in {
+    "ask FlowFacade RemoveFlow and respond with NotFound upon a 'DELETE /flows/name' with an unknown name" in {
       val flowFacade  = TestProbe()
       val flowUnknown = FlowUnknown("unknown")
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.GetMessages("unknown", 1, 1) =>
+            case FlowFacade.RemoveFlow("unknown") =>
               sender ! flowUnknown
               NoAutoPilot
-          }
-      })
-      Get("/flows/unknown/messages?id=1") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+        }
+      )
+      Delete("/flows/unknown") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
@@ -212,49 +196,66 @@ class ApiSpec extends WordSpec with Matchers with RouteTest with Scalatest with 
     "ask FlowFacade GetMessages and respond with OK upon a 'GET /flows/name/messages'" in {
       val flowFacade = TestProbe()
       val messages   = Vector(Message(1, "m1", now()), Message(0, "m0", now()))
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
           msg match {
             case FlowFacade.GetMessages("akka", Long.MaxValue, 2) =>
               sender ! Messages(messages)
               NoAutoPilot
-          }
-      })
+        }
+      )
       Get("/flows/akka/messages?count=2") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe OK
         responseAs[Seq[Message]] shouldBe messages
       }
     }
 
-    "ask FlowFacade AddMessages and respond with BadRequest upon a 'POST /flows/name/messages' with an empty text" in {
-      val flowFacade = TestProbe()
-      val emptyText  = "empty text"
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
+    "ask FlowFacade GetMessages and respond with NotFound upon a 'GET /flows/name/messages' with an unknown name" in {
+      val flowFacade  = TestProbe()
+      val flowUnknown = FlowUnknown("unknown")
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.AddMessage("akka", "") =>
-              sender ! BadCommand(emptyText)
+            case FlowFacade.GetMessages("unknown", 1, 1) =>
+              sender ! flowUnknown
               NoAutoPilot
-          }
-      })
-      val request = Post("/flows/akka/messages", AddMessageRequest(""))
+        }
+      )
+      Get("/flows/unknown/messages?id=1") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+        status shouldBe NotFound
+        responseAs[FlowUnknown] shouldBe flowUnknown
+      }
+    }
+
+    "ask FlowFacade AddMessages and respond with Created upon a 'POST /flows/name/messages'" in {
+      val flowFacade   = TestProbe()
+      val messageAdded = MessageAdded("akka", Message(0, "text", now()))
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
+          msg match {
+            case FlowFacade.AddMessage("akka", "text") =>
+              sender ! messageAdded
+              NoAutoPilot
+        }
+      )
+      val request = Post("/flows/akka/messages", AddMessageRequest("text"))
       request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
-        status shouldBe BadRequest
-        responseAs[BadCommand] shouldBe BadCommand(emptyText)
+        status shouldBe Created
+        responseAs[MessageAdded] shouldBe messageAdded
       }
     }
 
     "ask FlowFacade AddMessages and respond with NotFound upon a 'POST /flows/name/messages' with an unknown name" in {
       val flowFacade  = TestProbe()
       val flowUnknown = FlowUnknown("unknown")
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
           msg match {
             case FlowFacade.AddMessage("unknown", "text") =>
               sender ! flowUnknown
               NoAutoPilot
-          }
-      })
+        }
+      )
       val request = Post("/flows/unknown/messages", AddMessageRequest("text"))
       request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NotFound
@@ -262,21 +263,21 @@ class ApiSpec extends WordSpec with Matchers with RouteTest with Scalatest with 
       }
     }
 
-    "ask FlowFacade AddMessages and respond with NoContent upon a 'POST /flows/name/messages'" in {
-      val flowFacade   = TestProbe()
-      val messageAdded = MessageAdded("akka", Message(0, "text", now()))
-      flowFacade.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any) =
+    "ask FlowFacade AddMessages and respond with BadRequest upon a 'POST /flows/name/messages' with an empty text" in {
+      val flowFacade = TestProbe()
+      val emptyText  = "empty text"
+      flowFacade.setAutoPilot(
+        (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.AddMessage("akka", "text") =>
-              sender ! messageAdded
+            case FlowFacade.AddMessage("akka", "") =>
+              sender ! BadCommand(emptyText)
               NoAutoPilot
-          }
-      })
-      val request = Post("/flows/akka/messages", AddMessageRequest("text"))
+        }
+      )
+      val request = Post("/flows/akka/messages", AddMessageRequest(""))
       request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
-        status shouldBe Created
-        responseAs[MessageAdded] shouldBe messageAdded
+        status shouldBe BadRequest
+        responseAs[BadCommand] shouldBe BadCommand(emptyText)
       }
     }
 
@@ -285,7 +286,7 @@ class ApiSpec extends WordSpec with Matchers with RouteTest with Scalatest with 
       val akkaFlow      = FlowDesc("akka", "Akka")
       val angularJsFlow = FlowDesc("angularjs", "AngularJS")
       mediator.setAutoPilot(new AutoPilot {
-        val flowEventTopic = className[FlowEvent]
+        private val flowEventTopic = className[FlowEvent]
         def run(sender: ActorRef, msg: Any) =
           msg match {
             case Subscribe(`flowEventTopic`, _, source) =>
@@ -299,30 +300,25 @@ class ApiSpec extends WordSpec with Matchers with RouteTest with Scalatest with 
       val request = Get("/flow-events")
       request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
         status shouldBe StatusCodes.OK
-        val events =
-          responseAs[Source[ServerSentEvent, NotUsed]]
-            .collect {
-              case ServerSentEvent(Some(data), Some(eventType), _, _) =>
-                (decode[FlowDesc](data), eventType)
-            }
-            .collect {
-              case (Right(messageAdded), eventType) => (messageAdded, eventType)
-            }
-        val result = Await.result(
-          events.runFold(Vector.empty[(FlowDesc, String)])(_ :+ _),
-          1.second.dilated
-        )
-        result shouldBe Vector((akkaFlow, "added"), (angularJsFlow, "added"))
+        responseAs[Source[ServerSentEvent, NotUsed]]
+          .collect {
+            case ServerSentEvent(Some(data), Some(eventType), _, _) =>
+              (decode[FlowDesc](data), eventType)
+          }
+          .collect {
+            case (Right(messageAdded), eventType) => (messageAdded, eventType)
+          }
+          .runWith(Sink.seq)
+          .map(_ shouldBe Vector((akkaFlow, "added"), (angularJsFlow, "added")))
       }
     }
 
     "respond with OK upon a GET for '/message-events'" in {
-      val mediator         = TestProbe()
-      val akkaMessageAdded = MessageAdded("akka", Message(0, "Akka", now()))
-      val angularJsMessageAdded =
-        MessageAdded("angularjs", Message(1, "Scala", now()))
+      val mediator              = TestProbe()
+      val akkaMessageAdded      = MessageAdded("akka", Message(0, "Akka", now()))
+      val angularJsMessageAdded = MessageAdded("angularjs", Message(1, "Scala", now()))
       mediator.setAutoPilot(new AutoPilot {
-        val messageEventTopic = className[MessageEvent]
+        private val messageEventTopic = className[MessageEvent]
         def run(sender: ActorRef, msg: Any) =
           msg match {
             case Subscribe(`messageEventTopic`, _, source) =>
@@ -335,20 +331,16 @@ class ApiSpec extends WordSpec with Matchers with RouteTest with Scalatest with 
       val request = Get("/message-events")
       request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
         status shouldBe StatusCodes.OK
-        val events =
-          responseAs[Source[ServerSentEvent, NotUsed]]
-            .collect {
-              case ServerSentEvent(Some(data), Some(eventType), _, _) =>
-                (decode[MessageAdded](data), eventType)
-            }
-            .collect {
-              case (Right(messageAdded), eventType) => (messageAdded, eventType)
-            }
-        val result = Await.result(
-          events.runFold(Vector.empty[(MessageAdded, String)])(_ :+ _),
-          1.second.dilated
-        )
-        result shouldBe Vector((akkaMessageAdded, "added"), (angularJsMessageAdded, "added"))
+        responseAs[Source[ServerSentEvent, NotUsed]]
+          .collect {
+            case ServerSentEvent(Some(data), Some(eventType), _, _) =>
+              (decode[MessageAdded](data), eventType)
+          }
+          .collect {
+            case (Right(messageAdded), eventType) => (messageAdded, eventType)
+          }
+          .runWith(Sink.seq)
+          .map(_ shouldBe Vector((akkaMessageAdded, "added"), (angularJsMessageAdded, "added")))
       }
     }
   }
