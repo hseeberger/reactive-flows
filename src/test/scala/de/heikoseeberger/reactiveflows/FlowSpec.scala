@@ -16,11 +16,11 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.ActorDSL
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.testkit.TestProbe
+import org.scalatest.{ Matchers, WordSpec }
 
-class FlowSpec extends BaseAkkaSpec {
+class FlowSpec extends WordSpec with Matchers with AkkaSpec {
   import Flow._
 
   "Flow" should {

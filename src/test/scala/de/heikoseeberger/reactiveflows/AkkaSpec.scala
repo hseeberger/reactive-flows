@@ -18,11 +18,11 @@ package de.heikoseeberger.reactiveflows
 
 import akka.actor.{ ActorIdentity, ActorPath, ActorRef, ActorSystem, Identify }
 import akka.testkit.{ TestDuration, TestProbe }
-import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec }
+import org.scalatest.{ BeforeAndAfterAll, Suite }
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
-abstract class BaseAkkaSpec extends WordSpec with Matchers with BeforeAndAfterAll {
+trait AkkaSpec extends BeforeAndAfterAll { this: Suite =>
 
   implicit class TestProbeOps(probe: TestProbe) {
 

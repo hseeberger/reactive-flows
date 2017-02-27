@@ -19,8 +19,8 @@ Reactive Flows is a demo project showing a Reactive web app built with:
 - To run a single node, simply execute `reStart` in an sbt session; you can shutdown the app with `reStop`
 - To run multiple nodes, build a Docker image with `docker:publishLocal` and execute  the script `bin/run-reactive-flows.sh` without an argument or a number from [0, 10)
 - As the names and labels of the flows aren't persisted, you have to create them after the app has started; see below examples
-- Important: Reactive Flows uses [ConstructR](https://github.com/hseeberger/constructr) for initializing the cluster; make sure etcd is started and available, e.g. via `bin/run-etcd.sh`
-- Important: Reactive Flows uses the Cassandra plugin for Akka Persistence; make sure Cassandra is started and available under the configured contact point, e.g. via `bin/run-cassandra.sh`
+- Important: Reactive Flows uses [ConstructR](https://github.com/hseeberger/constructr) for initializing the cluster; make sure etcd is started and available
+- Important: Reactive Flows uses the Cassandra plugin for Akka Persistence; make sure Cassandra is started and available under the configured contact point
 
 ## REST API Examples ##
 

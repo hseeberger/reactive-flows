@@ -18,7 +18,6 @@ package de.heikoseeberger.reactiveflows
 
 import akka.cluster.Cluster
 import akka.cluster.ddata.DistributedData
-import akka.cluster.sharding.ClusterSharding
 import akka.remote.testkit.{ MultiNodeConfig, MultiNodeSpec }
 import akka.testkit.{ TestDuration, TestProbe }
 import com.typesafe.config.ConfigFactory
@@ -41,8 +40,8 @@ object FlowFacadeSpecConfig extends MultiNodeConfig {
   }
 }
 
-class FlowFacadeSpecMultiJvmNode1 extends MultiNodeFlowFacadeSpec
-class FlowFacadeSpecMultiJvmNode2 extends MultiNodeFlowFacadeSpec
+final class FlowFacadeSpecMultiJvmNode1 extends MultiNodeFlowFacadeSpec
+final class FlowFacadeSpecMultiJvmNode2 extends MultiNodeFlowFacadeSpec
 
 abstract class MultiNodeFlowFacadeSpec
     extends MultiNodeSpec(FlowFacadeSpecConfig)
@@ -74,9 +73,7 @@ abstract class MultiNodeFlowFacadeSpec
         flowFacade ! AddFlow("Akka")
         sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
         flowFacade ! FlowFacade.AddMessage("akka", "Akka")
-        sender.expectMsgPF() {
-          case MessageAdded("akka", Flow.Message(0, "Akka", _)) => ()
-        }
+        sender.expectMsgPF() { case MessageAdded("akka", Flow.Message(0, "Akka", _)) => () }
       }
       runOn(node2) {
         val sender             = TestProbe()
@@ -95,9 +92,7 @@ abstract class MultiNodeFlowFacadeSpec
         val sender             = TestProbe()
         implicit val senderRef = sender.ref
         flowFacade ! GetMessages("akka", 99, 99)
-        sender.expectMsgPF() {
-          case Messages(Vector(Message(0, "Akka", _))) => ()
-        }
+        sender.expectMsgPF() { case Messages(Vector(Message(0, "Akka", _))) => () }
       }
     }
   }
