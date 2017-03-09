@@ -36,7 +36,7 @@ import akka.http.scaladsl.testkit.TestFrameworkInterface.Scalatest
 import akka.stream.scaladsl.{ Sink, Source }
 import akka.testkit.TestActor.{ AutoPilot, NoAutoPilot }
 import akka.testkit.{ TestDuration, TestProbe }
-import de.heikoseeberger.akkahttpcirce.CirceSupport
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import de.heikoseeberger.akkasse.{ EventStreamUnmarshalling, ServerSentEvent }
 import io.circe.parser.decode
 import java.time.LocalDateTime
@@ -88,7 +88,7 @@ final class ApiSpec
     }
 
     // Attention: Don't move these up, else the above test will fail due to content negotiation!
-    import CirceSupport._
+    import FailFastCirceSupport._
     import io.circe.generic.auto._
     import io.circe.java8.time._
 

@@ -34,9 +34,9 @@ import akka.pattern.{ ask, pipe }
 import akka.stream.{ ActorMaterializer, OverflowStrategy }
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
-import de.heikoseeberger.akkahttpcirce.CirceSupport
 import de.heikoseeberger.akkasse.{ EventStreamMarshalling, ServerSentEvent }
 import java.net.InetSocketAddress
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 import scala.reflect.ClassTag
@@ -59,9 +59,9 @@ object Api {
             flowFacadeTimeout: Timeout,
             mediator: ActorRef,
             eventBufferSize: Int)(implicit ec: ExecutionContext): Route = {
-    import CirceSupport._
     import Directives._
     import EventStreamMarshalling._
+    import FailFastCirceSupport._
     import Flow.{ AddMessage => _, GetMessages => _, _ }
     import FlowFacade._
     import io.circe.generic.auto._
