@@ -9,6 +9,7 @@ services:
       "-Dcassandra-journal.contact-points.0=cassandra:9042",
       "-Dconstructr.coordination.host=etcd"
     ]
+    shm_size: 256m
   cassandra:
     image: cassandra:3.9
     ports:

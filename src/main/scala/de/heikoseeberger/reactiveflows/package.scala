@@ -37,5 +37,5 @@ package object reactiveflows {
     FiniteDuration(duration.toNanos, NANOSECONDS)
 
   def className[A: ClassTag]: String =
-    classTag[A].runtimeClass.getName
+    classTag[A].runtimeClass.getSimpleName
 }

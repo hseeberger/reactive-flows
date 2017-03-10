@@ -33,7 +33,7 @@ object FlowFacadeSpecConfig extends MultiNodeConfig {
     val node = role(port.toString)
     nodeConfig(node)(
       ConfigFactory
-        .parseString(s"akka.remote.netty.tcp.port = $port")
+        .parseString(s"akka.remote.artery.canonical.port = $port")
         .withFallback(ConfigFactory.load())
     )
     node

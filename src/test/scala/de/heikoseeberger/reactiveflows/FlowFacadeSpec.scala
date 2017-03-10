@@ -23,11 +23,10 @@ import akka.cluster.ddata.{ DistributedData, LWWMapKey }
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.testkit.TestActor.KeepRunning
 import akka.testkit.TestProbe
-import java.time.LocalDateTime
+import java.time.Instant
 import org.scalatest.{ Matchers, WordSpec }
 
 final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
-  import Flow.{ AddMessage => _, GetMessages => _, _ }
   import FlowFacade._
 
   private implicit val cluster = Cluster(system)
@@ -51,7 +50,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
-      mediator.expectMsg(Publish(className[FlowEvent], FlowAdded(FlowDesc("akka", "Akka"))))
+      mediator.expectMsg(Publish(className[Event], FlowAdded(FlowDesc("akka", "Akka"))))
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowExists(FlowDesc("akka", "Akka")))
@@ -64,7 +63,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowRemoved("akka"))
-      mediator.expectMsg(Publish(className[FlowEvent], FlowRemoved("akka")))
+      mediator.expectMsg(Publish(className[Event], FlowRemoved("akka")))
 
       flowFacade ! GetFlows
       sender.expectMsg(Flows(Set.empty))
@@ -77,17 +76,17 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       val sender             = TestProbe()
       implicit val senderRef = sender.ref
 
-      val time = LocalDateTime.now()
+      val time = Instant.now()
 
       val flowShardRegion = TestProbe()
       flowShardRegion.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case ("akka", Flow.GetMessages(Long.MaxValue, Short.MaxValue)) =>
-              sender ! Messages(Vector(Message(0, "Akka rocks!", time)))
+            case Flow.Envelope("akka", Flow.GetMessages(Long.MaxValue, Short.MaxValue)) =>
+              sender ! Flow.Messages(Vector(Flow.Message(0, "Akka rocks!", time)))
               KeepRunning
-            case ("akka", Flow.AddMessage(text)) =>
-              sender ! Flow.MessageAdded("akka", Message(1, text, time))
+            case Flow.Envelope("akka", Flow.AddMessage(text)) =>
+              sender ! Flow.MessageAdded("akka", Flow.Message(1, text, time))
               KeepRunning
         }
       )
@@ -104,7 +103,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
 
       flowFacade ! GetMessages("akka", Long.MaxValue, Short.MaxValue)
-      sender.expectMsg(Messages(Vector(Message(0, "Akka rocks!", time))))
+      sender.expectMsg(Flow.Messages(Vector(Flow.Message(0, "Akka rocks!", time))))
 
       flowFacade ! AddMessage("", "Scala rocks!")
       sender.expectMsg(BadCommand("name empty"))
@@ -113,7 +112,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       sender.expectMsg(FlowUnknown("scala"))
 
       flowFacade ! AddMessage("akka", "Scala rocks!")
-      sender.expectMsg(Flow.MessageAdded("akka", Message(1, "Scala rocks!", time)))
+      sender.expectMsg(Flow.MessageAdded("akka", Flow.Message(1, "Scala rocks!", time)))
     }
 
     "correctly update DistributedData" in {

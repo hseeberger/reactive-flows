@@ -50,8 +50,8 @@ reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Message', fu
         }
     });
 
-    // SSE for flows
-    var flowSource = new EventSource('/flow-events');
+    // SSE for flows-events
+    var flowSource = new EventSource('/flows-events');
     flowSource.addEventListener(
         'added',
         function(event) {
@@ -87,8 +87,8 @@ reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Message', fu
         false
     );
 
-    // SSE for messages
-    var messageSource = new EventSource('/message-events');
+    // SSE for flow-events
+    var messageSource = new EventSource('/flow-events');
     messageSource.addEventListener(
         'added',
         function(event) {

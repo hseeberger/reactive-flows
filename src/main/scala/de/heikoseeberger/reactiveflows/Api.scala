@@ -62,8 +62,6 @@ object Api {
     import Directives._
     import EventStreamMarshalling._
     import FailFastCirceSupport._
-    import Flow.{ AddMessage => _, GetMessages => _, _ }
-    import FlowFacade._
     import io.circe.generic.auto._
     import io.circe.java8.time._
     import io.circe.syntax._
@@ -82,6 +80,7 @@ object Api {
       implicit val timeout = flowFacadeTimeout
       pathPrefix("flows") {
         pathEnd {
+          import FlowFacade._
           get {
             complete((flowFacade ? GetFlows).mapTo[Flows].map(_.flows))
           } ~
@@ -97,6 +96,7 @@ object Api {
         } ~
         pathPrefix(Segment) { flowName =>
           pathEnd {
+            import FlowFacade._
             delete {
               onSuccess(flowFacade ? RemoveFlow(flowName)) {
                 case _: FlowRemoved  => complete(NoContent)
@@ -109,9 +109,9 @@ object Api {
             get {
               parameters('id.as[Long] ? Long.MaxValue, 'count.as[Short] ? 1.toShort) {
                 (id, count) =>
-                  onSuccess(flowFacade ? GetMessages(flowName, id, count)) {
-                    case Messages(msgs)  => complete(msgs)
-                    case fu: FlowUnknown => complete(NotFound -> fu)
+                  onSuccess(flowFacade ? FlowFacade.GetMessages(flowName, id, count)) {
+                    case Flow.Messages(messages)    => complete(messages)
+                    case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
                     // BadCommand not possible, because flowName can't be empty!
                   }
               }
@@ -119,10 +119,10 @@ object Api {
             post {
               entity(as[AddMessageRequest]) {
                 case AddMessageRequest(text) =>
-                  onSuccess(flowFacade ? AddMessage(flowName, text)) {
-                    case ma: MessageAdded => completeCreated(ma.message.id.toString, ma)
-                    case fu: FlowUnknown  => complete(NotFound -> fu)
-                    case bc: BadCommand   => complete(BadRequest -> bc)
+                  onSuccess(flowFacade ? FlowFacade.AddMessage(flowName, text)) {
+                    case ma: Flow.MessageAdded      => completeCreated(ma.message.id.toString, ma)
+                    case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
+                    case bc: BadCommand             => complete(BadRequest -> bc)
                   }
               }
             }
@@ -131,13 +131,14 @@ object Api {
       }
     }
 
-    def flowEvents = {
-      def toServerSentEvent(event: FlowEvent) =
+    def flowsEvents = {
+      import FlowFacade._
+      def toServerSentEvent(event: Event) =
         event match {
           case FlowAdded(desc)   => ServerSentEvent(desc.asJson.noSpaces, "added")
           case FlowRemoved(name) => ServerSentEvent(name, "removed")
         }
-      path("flow-events") {
+      path("flows-events") {
         get {
           complete {
             events(toServerSentEvent)
@@ -146,12 +147,13 @@ object Api {
       }
     }
 
-    def messageEvents = {
-      def toServerSentEvent(event: MessageEvent) =
+    def flowEvents = {
+      import Flow._
+      def toServerSentEvent(event: Event) =
         event match {
           case ma: MessageAdded => ServerSentEvent(ma.asJson.noSpaces, "added")
         }
-      path("message-events") {
+      path("flow-events") {
         get {
           complete {
             events(toServerSentEvent)
@@ -172,7 +174,7 @@ object Api {
         .map(toServerSentEvent)
         .mapMaterializedValue(source => mediator ! Subscribe(className[A], source))
 
-    assets ~ flows ~ flowEvents ~ messageEvents
+    assets ~ flows ~ flowsEvents ~ flowEvents
   }
 }
 
