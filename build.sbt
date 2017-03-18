@@ -48,6 +48,7 @@ lazy val library =
       val log4j                    = "2.8.1"
       val scala                    = "2.12.1"
       val scalaTest                = "3.0.1"
+      val scalapb                  = com.trueaccord.scalapb.compiler.Version.scalapbVersion
     }
     val akkaClusterSharding        = "com.typesafe.akka"        %% "akka-cluster-sharding"              % Version.akka
     val akkaDistributedData        = "com.typesafe.akka"        %% "akka-distributed-data-experimental" % Version.akka
@@ -66,6 +67,7 @@ lazy val library =
     val log4jCore                  = "org.apache.logging.log4j" %  "log4j-core"                         % Version.log4j
     val log4jSlf4jImpl             = "org.apache.logging.log4j" %  "log4j-slf4j-impl"                   % Version.log4j
     val scalaTest                  = "org.scalatest"            %% "scalatest"                          % Version.scalaTest
+    val scalapbRuntime             = "com.trueaccord.scalapb"   %% "scalapb-runtime"                    % Version.scalapb
   }
 
 // *****************************************************************************
@@ -77,7 +79,8 @@ lazy val settings =
   gitSettings ++
   headerSettings ++
   dockerSettings ++
-  multiJvmSettings
+  multiJvmSettings ++
+  pbSettings
 
 lazy val commonSettings =
   Seq(
@@ -133,4 +136,14 @@ lazy val multiJvmSettings =
   Seq(
     unmanagedSourceDirectories.in(MultiJvm) := Vector(scalaSource.in(MultiJvm).value),
     test.in(Test) := test.in(Test).dependsOn(test.in(MultiJvm)).value
+  )
+
+lazy val pbSettings =
+  Seq(
+    PB.targets.in(Compile) := Seq(
+      scalapb.gen(flatPackage = true) -> sourceManaged.in(Compile).value
+    ),
+    libraryDependencies ++= Seq(
+      library.scalapbRuntime % "protobuf"
+    )
   )

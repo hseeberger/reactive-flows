@@ -39,7 +39,7 @@ import akka.testkit.{ TestDuration, TestProbe }
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import de.heikoseeberger.akkasse.{ EventStreamUnmarshalling, ServerSentEvent }
 import io.circe.parser.decode
-import java.time.LocalDateTime
+import java.time.Instant.now
 import org.scalatest.{ AsyncWordSpec, Matchers, Succeeded }
 import scala.concurrent.duration.DurationInt
 
@@ -51,8 +51,6 @@ final class ApiSpec
     with RequestBuilding {
   import Api._
   import EventStreamUnmarshalling._
-  import Flow.{ AddMessage => _, GetMessages => _, _ }
-  import FlowFacade._
 
   private val timeout = 250.milliseconds.dilated
 
@@ -93,12 +91,13 @@ final class ApiSpec
     import io.circe.java8.time._
 
     "ask FlowFacade GetFlows and respond with OK upon a 'GET /flows'" in {
+      import FlowFacade._
       val flowFacade = TestProbe()
       val flows      = Set(FlowDesc("akka", "Akka"), FlowDesc("angularjs", "AngularJS"))
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.GetFlows =>
+            case GetFlows =>
               sender ! Flows(flows)
               NoAutoPilot
         }
@@ -110,6 +109,7 @@ final class ApiSpec
     }
 
     "ask FlowFacade AddFlow and respond with Created upon a 'POST /flows'" in {
+      import FlowFacade._
       val flowFacade = TestProbe()
       val flowAdded  = FlowAdded(FlowDesc("akka", "Akka"))
       flowFacade.setAutoPilot(
@@ -127,12 +127,13 @@ final class ApiSpec
     }
 
     "ask FlowFacade AddFlow and respond with Conflict upon a 'POST /flows' with an existing flow" in {
+      import FlowFacade._
       val flowFacade = TestProbe()
       val flowExists = FlowExists(FlowDesc("akka", "Akka"))
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.AddFlow("Akka") =>
+            case AddFlow("Akka") =>
               sender ! flowExists
               NoAutoPilot
         }
@@ -144,12 +145,13 @@ final class ApiSpec
     }
 
     "ask FlowFacade AddFlow and respond with BadRequest upon a 'POST /flows' with an empty label" in {
+      import FlowFacade._
       val flowFacade = TestProbe()
       val emptyLabel = "empty label"
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.AddFlow("") =>
+            case AddFlow("") =>
               sender ! BadCommand(emptyLabel)
               NoAutoPilot
         }
@@ -161,12 +163,13 @@ final class ApiSpec
     }
 
     "ask FlowFacade RemoveFlow and respond with NoContent upon a 'DELETE /flows/name'" in {
+      import FlowFacade._
       val flowFacade  = TestProbe()
       val flowRemoved = FlowRemoved("akka")
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.RemoveFlow("akka") =>
+            case RemoveFlow("akka") =>
               sender ! flowRemoved
               NoAutoPilot
         }
@@ -177,12 +180,13 @@ final class ApiSpec
     }
 
     "ask FlowFacade RemoveFlow and respond with NotFound upon a 'DELETE /flows/name' with an unknown name" in {
+      import FlowFacade._
       val flowFacade  = TestProbe()
       val flowUnknown = FlowUnknown("unknown")
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.RemoveFlow("unknown") =>
+            case RemoveFlow("unknown") =>
               sender ! flowUnknown
               NoAutoPilot
         }
@@ -194,6 +198,7 @@ final class ApiSpec
     }
 
     "ask FlowFacade GetMessages and respond with OK upon a 'GET /flows/name/messages'" in {
+      import Flow._
       val flowFacade = TestProbe()
       val messages   = Vector(Message(1, "m1", now()), Message(0, "m0", now()))
       flowFacade.setAutoPilot(
@@ -211,12 +216,13 @@ final class ApiSpec
     }
 
     "ask FlowFacade GetMessages and respond with NotFound upon a 'GET /flows/name/messages' with an unknown name" in {
+      import FlowFacade._
       val flowFacade  = TestProbe()
       val flowUnknown = FlowUnknown("unknown")
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.GetMessages("unknown", 1, 1) =>
+            case GetMessages("unknown", 1, 1) =>
               sender ! flowUnknown
               NoAutoPilot
         }
@@ -228,6 +234,7 @@ final class ApiSpec
     }
 
     "ask FlowFacade AddMessages and respond with Created upon a 'POST /flows/name/messages'" in {
+      import Flow._
       val flowFacade   = TestProbe()
       val messageAdded = MessageAdded("akka", Message(0, "text", now()))
       flowFacade.setAutoPilot(
@@ -246,12 +253,13 @@ final class ApiSpec
     }
 
     "ask FlowFacade AddMessages and respond with NotFound upon a 'POST /flows/name/messages' with an unknown name" in {
+      import FlowFacade._
       val flowFacade  = TestProbe()
       val flowUnknown = FlowUnknown("unknown")
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.AddMessage("unknown", "text") =>
+            case AddMessage("unknown", "text") =>
               sender ! flowUnknown
               NoAutoPilot
         }
@@ -264,12 +272,13 @@ final class ApiSpec
     }
 
     "ask FlowFacade AddMessages and respond with BadRequest upon a 'POST /flows/name/messages' with an empty text" in {
+      import FlowFacade._
       val flowFacade = TestProbe()
       val emptyText  = "empty text"
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.AddMessage("akka", "") =>
+            case AddMessage("akka", "") =>
               sender ! BadCommand(emptyText)
               NoAutoPilot
         }
@@ -281,23 +290,23 @@ final class ApiSpec
       }
     }
 
-    "respond with OK upon a GET for '/flow-events'" in {
+    "respond with OK upon a GET for '/flows-events'" in {
+      import FlowFacade._
       val mediator      = TestProbe()
       val akkaFlow      = FlowDesc("akka", "Akka")
       val angularJsFlow = FlowDesc("angularjs", "AngularJS")
       mediator.setAutoPilot(new AutoPilot {
-        private val flowEventTopic = className[FlowEvent]
+        private val flowEventTopic = className[Event]
         def run(sender: ActorRef, msg: Any) =
           msg match {
             case Subscribe(`flowEventTopic`, _, source) =>
-              source ! FlowFacade.FlowAdded(akkaFlow)
-              source ! FlowFacade.FlowAdded(angularJsFlow)
-              source ! Status
-                .Success(NotUsed) // Completes the Source.actorRef!
+              source ! FlowAdded(akkaFlow)
+              source ! FlowAdded(angularJsFlow)
+              source ! Status.Success(NotUsed) // Completes the Source.actorRef!
               NoAutoPilot
           }
       })
-      val request = Get("/flow-events")
+      val request = Get("/flows-events")
       request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
         status shouldBe StatusCodes.OK
         responseAs[Source[ServerSentEvent, NotUsed]]
@@ -313,12 +322,13 @@ final class ApiSpec
       }
     }
 
-    "respond with OK upon a GET for '/message-events'" in {
+    "respond with OK upon a GET for '/flow-events'" in {
+      import Flow._
       val mediator              = TestProbe()
       val akkaMessageAdded      = MessageAdded("akka", Message(0, "Akka", now()))
       val angularJsMessageAdded = MessageAdded("angularjs", Message(1, "Scala", now()))
       mediator.setAutoPilot(new AutoPilot {
-        private val messageEventTopic = className[MessageEvent]
+        private val messageEventTopic = className[Event]
         def run(sender: ActorRef, msg: Any) =
           msg match {
             case Subscribe(`messageEventTopic`, _, source) =>
@@ -328,7 +338,7 @@ final class ApiSpec
               NoAutoPilot
           }
       })
-      val request = Get("/message-events")
+      val request = Get("/flow-events")
       request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
         status shouldBe StatusCodes.OK
         responseAs[Source[ServerSentEvent, NotUsed]]
@@ -344,6 +354,4 @@ final class ApiSpec
       }
     }
   }
-
-  private def now() = LocalDateTime.now().withNano(0)
 }

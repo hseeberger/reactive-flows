@@ -21,30 +21,37 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.cluster.sharding.ShardRegion.Passivate
 import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings }
 import akka.persistence.PersistentActor
-import java.time.LocalDateTime
+import java.io.{ Serializable => JavaSerializable }
+import java.time.Instant
 import scala.math.{ max, min }
 
 object Flow {
 
-  sealed trait MessageEvent
+  sealed trait SerializableMessage extends JavaSerializable
+  sealed trait Command             extends SerializableMessage
+  sealed trait Event
 
   // == Message protocol – start ==
 
-  final case class GetMessages(id: Long, count: Short)
-  final case class Messages(messages: Vector[Message])
+  final case class GetMessages(id: Long, count: Int)   extends Command
+  final case class Messages(messages: Vector[Message]) extends SerializableMessage
 
-  final case class AddMessage(text: String)
-  final case class MessageAdded(name: String, message: Message) extends MessageEvent
+  final case class AddMessage(text: String) extends Command
+  final case class MessageAdded(name: String, message: Message)
+      extends SerializableMessage
+      with Event
 
-  final case object Stop
+  final case object Stop extends Command
   // No response
+
+  final case class Envelope(name: String, command: Command) extends SerializableMessage // for sharding
 
   private final case object Terminate
   // No response
 
-  // == Message protocol – end ==
+  final case class Message(id: Long, text: String, time: Instant)
 
-  final case class Message(id: Long, text: String, time: LocalDateTime)
+  // == Message protocol – end ==
 
   def apply(mediator: ActorRef): Props =
     Props(new Flow(mediator))
@@ -54,8 +61,8 @@ object Flow {
     ClusterSharding(system).start(className[Flow],
                                   Flow(mediator),
                                   ClusterShardingSettings(system),
-                                  { case (name: String, msg) => (name, msg) },
-                                  { case (name: String, _)   => shardId(name) })
+                                  { case Envelope(name, command) => (name, command) },
+                                  { case Envelope(name, _)       => shardId(name) })
   }
 }
 
@@ -74,15 +81,15 @@ final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
     case AddMessage("")   => badCommand("text empty")
     case AddMessage(text) => handleAddMessage(text)
 
-    case Stop      => context.parent ! Passivate(Terminate)
+    case Stop      => context.parent ! Passivate(Terminate) // parent is **local** shard region
     case Terminate => context.stop(self)
   }
 
   override def receiveRecover = {
-    case event: MessageEvent => handleEvent(event)
+    case event: Event => handleEvent(event)
   }
 
-  private def handleGetMessages(id: Long, count: Short) = {
+  private def handleGetMessages(id: Long, count: Int) = {
     // We can use proper `Long` values in a later step!
     val intId = min(id, Int.MaxValue).toInt
     val n     = max(messages.size - 1 - intId, 0)
@@ -90,16 +97,16 @@ final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
   }
 
   private def handleAddMessage(text: String) = {
-    val message = Message(messages.size, text, LocalDateTime.now())
+    val message = Message(messages.size, text, Instant.now())
     persist(MessageAdded(self.path.name, message)) { messageAdded =>
       handleEvent(messageAdded)
-      mediator ! Publish(className[MessageEvent], messageAdded)
+      mediator ! Publish(className[Event], messageAdded)
       log.info("Message starting with '{}' added", text.take(42))
       sender() ! messageAdded
     }
   }
 
-  private def handleEvent(event: MessageEvent) =
+  private def handleEvent(event: Event) =
     event match {
       case MessageAdded(_, message) => messages +:= message
     }
