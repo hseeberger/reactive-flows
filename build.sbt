@@ -37,11 +37,11 @@ lazy val `reactive-flows` =
 lazy val library =
   new {
     object Version {
-      val akka                     = "2.4.17"
-      val akkaHttp                 = "10.0.4"
+      val akka                     = "2.5.0-RC1"
+      val akkaHttp                 = "10.0.5"
       val akkaHttpJson             = "1.13.0"
       val akkaLog4j                = "1.3.0"
-      val akkaPersistenceCassandra = "0.23"
+      val akkaPersistenceCassandra = "0.50-RC1"
       val akkaSse                  = "2.0.0"
       val circe                    = "0.7.0"
       val constructr               = "0.16.1"
@@ -50,24 +50,24 @@ lazy val library =
       val scalaTest                = "3.0.1"
       val scalapb                  = com.trueaccord.scalapb.compiler.Version.scalapbVersion
     }
-    val akkaClusterSharding        = "com.typesafe.akka"        %% "akka-cluster-sharding"              % Version.akka
-    val akkaDistributedData        = "com.typesafe.akka"        %% "akka-distributed-data-experimental" % Version.akka
-    val akkaPersistenceCassandra   = "com.typesafe.akka"        %% "akka-persistence-cassandra"         % Version.akkaPersistenceCassandra
-    val akkaHttp                   = "com.typesafe.akka"        %% "akka-http"                          % Version.akkaHttp
-    val akkaHttpCirce              = "de.heikoseeberger"        %% "akka-http-circe"                    % Version.akkaHttpJson
-    val akkaHttpTestkit            = "com.typesafe.akka"        %% "akka-http-testkit"                  % Version.akkaHttp
-    val akkaLog4j                  = "de.heikoseeberger"        %% "akka-log4j"                         % Version.akkaLog4j
-    val akkaMultiNodeTestkit       = "com.typesafe.akka"        %% "akka-multi-node-testkit"            % Version.akka
-    val akkaSse                    = "de.heikoseeberger"        %% "akka-sse"                           % Version.akkaSse
-    val akkaTestkit                = "com.typesafe.akka"        %% "akka-testkit"                       % Version.akka
-    val circeGeneric               = "io.circe"                 %% "circe-generic"                      % Version.circe
-    val circeJava8                 = "io.circe"                 %% "circe-java8"                        % Version.circe
-    val constructr                 = "de.heikoseeberger"        %% "constructr"                         % Version.constructr
-    val constructrCoordinationEtcd = "de.heikoseeberger"        %% "constructr-coordination-etcd"       % Version.constructr
-    val log4jCore                  = "org.apache.logging.log4j" %  "log4j-core"                         % Version.log4j
-    val log4jSlf4jImpl             = "org.apache.logging.log4j" %  "log4j-slf4j-impl"                   % Version.log4j
-    val scalaTest                  = "org.scalatest"            %% "scalatest"                          % Version.scalaTest
-    val scalapbRuntime             = "com.trueaccord.scalapb"   %% "scalapb-runtime"                    % Version.scalapb
+    val akkaClusterSharding        = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Version.akka
+    val akkaDistributedData        = "com.typesafe.akka"        %% "akka-distributed-data"        % Version.akka
+    val akkaPersistenceCassandra   = "com.typesafe.akka"        %% "akka-persistence-cassandra"   % Version.akkaPersistenceCassandra
+    val akkaHttp                   = "com.typesafe.akka"        %% "akka-http"                    % Version.akkaHttp
+    val akkaHttpCirce              = "de.heikoseeberger"        %% "akka-http-circe"              % Version.akkaHttpJson
+    val akkaHttpTestkit            = "com.typesafe.akka"        %% "akka-http-testkit"            % Version.akkaHttp
+    val akkaLog4j                  = "de.heikoseeberger"        %% "akka-log4j"                   % Version.akkaLog4j
+    val akkaMultiNodeTestkit       = "com.typesafe.akka"        %% "akka-multi-node-testkit"      % Version.akka
+    val akkaSse                    = "de.heikoseeberger"        %% "akka-sse"                     % Version.akkaSse
+    val akkaTestkit                = "com.typesafe.akka"        %% "akka-testkit"                 % Version.akka
+    val circeGeneric               = "io.circe"                 %% "circe-generic"                % Version.circe
+    val circeJava8                 = "io.circe"                 %% "circe-java8"                  % Version.circe
+    val constructr                 = "de.heikoseeberger"        %% "constructr"                   % Version.constructr
+    val constructrCoordinationEtcd = "de.heikoseeberger"        %% "constructr-coordination-etcd" % Version.constructr
+    val log4jCore                  = "org.apache.logging.log4j" %  "log4j-core"                   % Version.log4j
+    val log4jSlf4jImpl             = "org.apache.logging.log4j" %  "log4j-slf4j-impl"             % Version.log4j
+    val scalaTest                  = "org.scalatest"            %% "scalatest"                    % Version.scalaTest
+    val scalapbRuntime             = "com.trueaccord.scalapb"   %% "scalapb-runtime"              % Version.scalapb
   }
 
 // *****************************************************************************

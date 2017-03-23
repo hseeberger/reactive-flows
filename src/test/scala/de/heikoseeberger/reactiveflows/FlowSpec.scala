@@ -54,7 +54,7 @@ final class FlowSpec extends WordSpec with Matchers with AkkaSpec {
 
       flow ! GetMessages(0, 1)
       sender.expectMsg(Messages(Vector(Message(0, "Akka", time0))))
-      flow ! GetMessages(0, Short.MaxValue)
+      flow ! GetMessages(0, Int.MaxValue)
       sender.expectMsg(Messages(Vector(Message(0, "Akka", time0))))
 
       flow ! AddMessage("Scala")
@@ -72,18 +72,8 @@ final class FlowSpec extends WordSpec with Matchers with AkkaSpec {
       sender.expectMsg(Messages(Vector(Message(1, "Scala", time1))))
       flow ! GetMessages(2, 1)
       sender.expectMsg(Messages(Vector(Message(2, "Awesome", time2))))
-      flow ! GetMessages(1, Short.MaxValue)
-      sender.expectMsg(
-        Messages(Vector(Message(1, "Scala", time1), Message(0, "Akka", time0)))
-      )
-      flow ! GetMessages(Long.MaxValue, 3)
-      sender.expectMsg(
-        Messages(
-          Vector(Message(2, "Awesome", time2),
-                 Message(1, "Scala", time1),
-                 Message(0, "Akka", time0))
-        )
-      )
+      flow ! GetMessages(1, Int.MaxValue)
+      sender.expectMsg(Messages(Vector(Message(1, "Scala", time1), Message(2, "Awesome", time2))))
     }
   }
 }

@@ -40,7 +40,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       val replicator = TestProbe()
       val flowFacade = system.actorOf(FlowFacade(mediator.ref, replicator.ref, system.deadLetters))
 
-      replicator.expectMsg(Subscribe(LWWMapKey[FlowDesc]("flows"), flowFacade))
+      replicator.expectMsg(Subscribe(LWWMapKey[String, FlowDesc]("flows"), flowFacade))
 
       flowFacade ! GetFlows
       sender.expectMsg(Flows(Set.empty))
@@ -82,7 +82,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       flowShardRegion.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case Flow.Envelope("akka", Flow.GetMessages(Long.MaxValue, Short.MaxValue)) =>
+            case Flow.Envelope("akka", Flow.GetMessages(Long.MaxValue, Int.MaxValue)) =>
               sender ! Flow.Messages(Vector(Flow.Message(0, "Akka rocks!", time)))
               KeepRunning
             case Flow.Envelope("akka", Flow.AddMessage(text)) =>
@@ -93,16 +93,16 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       val flowFacade =
         system.actorOf(FlowFacade(system.deadLetters, system.deadLetters, flowShardRegion.ref))
 
-      flowFacade ! GetMessages("", Long.MaxValue, Short.MaxValue)
+      flowFacade ! GetMessages("", Long.MaxValue, Int.MaxValue)
       sender.expectMsg(BadCommand("name empty"))
 
-      flowFacade ! GetMessages("akka", Long.MaxValue, Short.MaxValue)
+      flowFacade ! GetMessages("akka", Long.MaxValue, Int.MaxValue)
       sender.expectMsg(FlowUnknown("akka"))
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
 
-      flowFacade ! GetMessages("akka", Long.MaxValue, Short.MaxValue)
+      flowFacade ! GetMessages("akka", Long.MaxValue, Int.MaxValue)
       sender.expectMsg(Flow.Messages(Vector(Flow.Message(0, "Akka rocks!", time))))
 
       flowFacade ! AddMessage("", "Scala rocks!")

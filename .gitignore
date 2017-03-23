@@ -26,7 +26,8 @@ target
 # Mac
 .DS_Store
 
-# Akka Persistence
+# Akka
+ddata*
 journal
 snapshots
 

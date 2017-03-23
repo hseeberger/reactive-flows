@@ -57,10 +57,10 @@ object FlowFacade {
 
   final val Name = "flow-facade"
 
-  val flows: Key[LWWMap[FlowDesc]] = LWWMapKey[FlowDesc]("flows")
+  val flows: Key[LWWMap[String, FlowDesc]] = LWWMapKey("flows")
 
   private val updateFlowData =
-    Replicator.Update(flows, LWWMap.empty[FlowDesc], Replicator.WriteLocal) _
+    Replicator.Update(flows, LWWMap.empty[String, FlowDesc], Replicator.WriteLocal) _
 
   def apply(mediator: ActorRef,
             replicator: ActorRef,

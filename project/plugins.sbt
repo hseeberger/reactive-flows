@@ -1,5 +1,5 @@
 addSbtPlugin("com.dwijnand"      % "sbt-travisci"        % "1.0.0")
-addSbtPlugin("com.geirsson"      % "sbt-scalafmt"        % "0.6.2")
+addSbtPlugin("com.geirsson"      % "sbt-scalafmt"        % "0.6.6")
 addSbtPlugin("com.thesamet"      % "sbt-protoc"          % "0.99.6")
 addSbtPlugin("com.typesafe.sbt"  % "sbt-git"             % "0.8.5")
 addSbtPlugin("com.typesafe.sbt"  % "sbt-multi-jvm"       % "0.3.11")

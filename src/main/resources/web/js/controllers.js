@@ -28,7 +28,7 @@ reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Message', fu
             $scope.shouldShowForm = true;
             var messages = Message.query({'name': name}, function() {
                 console.log('Received ' + messages.length + ' messages for flow ' + name);
-                $scope.messages = messages.map(function(message) {
+                $scope.messages = messages.reverse().map(function(message) {
                     message.time = Date.parse(message.time);
                     return message;
                 });

@@ -91,7 +91,7 @@ abstract class MultiNodeFlowFacadeSpec
       runOn(node2) {
         val sender             = TestProbe()
         implicit val senderRef = sender.ref
-        flowFacade ! GetMessages("akka", 99, 99)
+        flowFacade ! GetMessages("akka", 0, 99)
         sender.expectMsgPF() { case Messages(Vector(Message(0, "Akka", _))) => () }
       }
     }

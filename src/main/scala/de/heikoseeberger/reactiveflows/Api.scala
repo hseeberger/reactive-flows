@@ -107,13 +107,12 @@ object Api {
           } ~
           path("messages") {
             get {
-              parameters('id.as[Long] ? Long.MaxValue, 'count.as[Short] ? 1.toShort) {
-                (id, count) =>
-                  onSuccess(flowFacade ? FlowFacade.GetMessages(flowName, id, count)) {
-                    case Flow.Messages(messages)    => complete(messages)
-                    case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
-                    // BadCommand not possible, because flowName can't be empty!
-                  }
+              parameters('id.as[Long] ? 0L, 'count.as[Int] ? 1.toInt) { (id, count) =>
+                onSuccess(flowFacade ? FlowFacade.GetMessages(flowName, id, count)) {
+                  case Flow.Messages(messages)    => complete(messages)
+                  case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
+                  // BadCommand not possible, because flowName can't be empty!
+                }
               }
             } ~
             post {

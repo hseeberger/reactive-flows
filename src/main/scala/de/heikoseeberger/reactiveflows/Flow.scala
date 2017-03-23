@@ -90,10 +90,10 @@ final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
   }
 
   private def handleGetMessages(id: Long, count: Int) = {
-    // We can use proper `Long` values in a later step!
+    // TODO: We can use proper `Long` values in a later step!
     val intId = min(id, Int.MaxValue).toInt
-    val n     = max(messages.size - 1 - intId, 0)
-    sender() ! Messages(messages.slice(n, n + count))
+    val until = min(intId.toLong + count, Int.MaxValue).toInt
+    sender() ! Messages(messages.slice(intId, until))
   }
 
   private def handleAddMessage(text: String) = {
@@ -108,6 +108,6 @@ final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
 
   private def handleEvent(event: Event) =
     event match {
-      case MessageAdded(_, message) => messages +:= message
+      case MessageAdded(_, message) => messages :+= message
     }
 }
