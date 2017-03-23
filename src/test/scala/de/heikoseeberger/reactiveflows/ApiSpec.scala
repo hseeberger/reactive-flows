@@ -204,7 +204,7 @@ final class ApiSpec
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.GetMessages("akka", Long.MaxValue, 2) =>
+            case FlowFacade.GetMessages("akka", 0, 2) =>
               sender ! Messages(messages)
               NoAutoPilot
         }
