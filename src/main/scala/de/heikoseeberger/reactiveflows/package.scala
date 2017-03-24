@@ -28,10 +28,10 @@ package object reactiveflows {
   type Seq[+A]         = scala.collection.immutable.Seq[A]
   type IndexedSeq[+A]  = scala.collection.immutable.IndexedSeq[A]
 
-  final case class BadCommand(message: String)
+  final case class BadCommand(command: String)
 
-  def badCommand(message: String)(implicit context: ActorContext): Unit =
-    context.sender() ! BadCommand(message)
+  def badCommand(command: String)(implicit context: ActorContext): Unit =
+    context.sender() ! BadCommand(command)
 
   implicit def javaDurationToScala(duration: JavaDuration): FiniteDuration =
     FiniteDuration(duration.toNanos, NANOSECONDS)

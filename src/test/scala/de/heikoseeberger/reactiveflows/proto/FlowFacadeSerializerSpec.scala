@@ -74,14 +74,14 @@ final class FlowFacadeSerializerSpec extends WordSpec with Matchers {
       serializer.fromBinary(binary, manifest) shouldBe o
     }
 
-    "serialize and deserialize GetMessages" in {
-      val o                  = GetMessages("name", 0, 1)
+    "serialize and deserialize GetPosts" in {
+      val o                  = GetPosts("name", 0, 1)
       val (manifest, binary) = serialize(o)
       serializer.fromBinary(binary, manifest) shouldBe o
     }
 
-    "serialize and deserialize MessageAdd" in {
-      val o                  = AddMessage("name", "text")
+    "serialize and deserialize PostAdd" in {
+      val o                  = AddPost("name", "text")
       val (manifest, binary) = serialize(o)
       serializer.fromBinary(binary, manifest) shouldBe o
     }

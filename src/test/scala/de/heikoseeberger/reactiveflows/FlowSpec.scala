@@ -24,7 +24,7 @@ final class FlowSpec extends WordSpec with Matchers with AkkaSpec {
   import Flow._
 
   "Flow" should {
-    "correctly handle GetMessage and AddMessage commands" in {
+    "correctly handle GetPost and AddPost commands" in {
       val sender             = TestProbe()
       implicit val senderRef = sender.ref
 
@@ -32,48 +32,49 @@ final class FlowSpec extends WordSpec with Matchers with AkkaSpec {
       val flow     = system.actorOf(Flow(mediator.ref))
       val flowName = flow.path.name
 
-      flow ! GetMessages(-1, 1)
-      sender.expectMsg(BadCommand("id < 0"))
+      flow ! GetPosts(-1, 1)
+      sender.expectMsg(BadCommand("from < 0"))
 
-      flow ! GetMessages(0, 0)
+      flow ! GetPosts(0, 0)
       sender.expectMsg(BadCommand("count <= 0"))
 
-      flow ! GetMessages(Long.MaxValue, 1)
-      sender.expectMsg(Messages(Vector.empty))
+      flow ! GetPosts(Long.MaxValue, 1)
+      sender.expectMsg(Posts(Vector.empty))
 
-      flow ! AddMessage("")
+      flow ! AddPost("")
       sender.expectMsg(BadCommand("text empty"))
 
-      flow ! AddMessage("Akka")
-      val time0 = sender.expectMsgPF(
-        hint = """expected `MessageAdded(`flowName`, Message(2, "Akka", _))`"""
-      ) { case MessageAdded(`flowName`, Message(0, "Akka", time)) => time }
-      mediator.expectMsg(
-        Publish(className[Event], MessageAdded(`flowName`, Message(0, "Akka", time0)))
-      )
+      flow ! AddPost("Akka")
+      val time0 =
+        sender.expectMsgPF(hint = """expected `PostAdded(`flowName`, Post(2, "Akka", _))`""") {
+          case PostAdded(`flowName`, Post(0, "Akka", time)) => time
+        }
+      mediator.expectMsg(Publish(className[Event], PostAdded(`flowName`, Post(0, "Akka", time0))))
 
-      flow ! GetMessages(0, 1)
-      sender.expectMsg(Messages(Vector(Message(0, "Akka", time0))))
-      flow ! GetMessages(0, Int.MaxValue)
-      sender.expectMsg(Messages(Vector(Message(0, "Akka", time0))))
+      flow ! GetPosts(0, 1)
+      sender.expectMsg(Posts(Vector(Post(0, "Akka", time0))))
+      flow ! GetPosts(0, Int.MaxValue)
+      sender.expectMsg(Posts(Vector(Post(0, "Akka", time0))))
 
-      flow ! AddMessage("Scala")
-      val time1 = sender.expectMsgPF(
-        hint = """expected `MessageAdded(`flowName`, Message(2, "Scala", _))`"""
-      ) { case MessageAdded(`flowName`, Message(1, "Scala", time)) => time }
-      flow ! AddMessage("Awesome")
-      val time2 = sender.expectMsgPF(
-        hint = """expected `MessageAdded(`flowName`, Message(2, "Awesome", _))`"""
-      ) { case MessageAdded(`flowName`, Message(2, "Awesome", time)) => time }
+      flow ! AddPost("Scala")
+      val time1 =
+        sender.expectMsgPF(hint = """expected `PostAdded(`flowName`, Post(2, "Scala", _))`""") {
+          case PostAdded(`flowName`, Post(1, "Scala", time)) => time
+        }
+      flow ! AddPost("Awesome")
+      val time2 =
+        sender.expectMsgPF(hint = """expected `PostAdded(`flowName`, Post(2, "Awesome", _))`""") {
+          case PostAdded(`flowName`, Post(2, "Awesome", time)) => time
+        }
 
-      flow ! GetMessages(0, 1)
-      sender.expectMsg(Messages(Vector(Message(0, "Akka", time0))))
-      flow ! GetMessages(1, 1)
-      sender.expectMsg(Messages(Vector(Message(1, "Scala", time1))))
-      flow ! GetMessages(2, 1)
-      sender.expectMsg(Messages(Vector(Message(2, "Awesome", time2))))
-      flow ! GetMessages(1, Int.MaxValue)
-      sender.expectMsg(Messages(Vector(Message(1, "Scala", time1), Message(2, "Awesome", time2))))
+      flow ! GetPosts(0, 1)
+      sender.expectMsg(Posts(Vector(Post(0, "Akka", time0))))
+      flow ! GetPosts(1, 1)
+      sender.expectMsg(Posts(Vector(Post(1, "Scala", time1))))
+      flow ! GetPosts(2, 1)
+      sender.expectMsg(Posts(Vector(Post(2, "Awesome", time2))))
+      flow ! GetPosts(1, Int.MaxValue)
+      sender.expectMsg(Posts(Vector(Post(1, "Scala", time1), Post(2, "Awesome", time2))))
     }
   }
 }

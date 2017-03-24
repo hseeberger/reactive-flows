@@ -29,8 +29,6 @@ import org.scalatest.{ Matchers, WordSpec }
 final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
   import FlowFacade._
 
-  private implicit val cluster = Cluster(system)
-
   "FlowFacade" should {
     "correctly handle GetFlows, AddFlow and RemoveFlow commands" in {
       val sender             = TestProbe()
@@ -72,7 +70,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       sender.expectMsg(FlowUnknown("akka"))
     }
 
-    "correctly handle GetMessages and AddMessage commands" in {
+    "correctly handle GetPosts and AddPost commands" in {
       val sender             = TestProbe()
       implicit val senderRef = sender.ref
 
@@ -82,37 +80,37 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       flowShardRegion.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case Flow.Envelope("akka", Flow.GetMessages(Long.MaxValue, Int.MaxValue)) =>
-              sender ! Flow.Messages(Vector(Flow.Message(0, "Akka rocks!", time)))
+            case Flow.CommandEnvelope("akka", Flow.GetPosts(Long.MaxValue, Int.MaxValue)) =>
+              sender ! Flow.Posts(Vector(Flow.Post(0, "Akka rocks!", time)))
               KeepRunning
-            case Flow.Envelope("akka", Flow.AddMessage(text)) =>
-              sender ! Flow.MessageAdded("akka", Flow.Message(1, text, time))
+            case Flow.CommandEnvelope("akka", Flow.AddPost(text)) =>
+              sender ! Flow.PostAdded("akka", Flow.Post(1, text, time))
               KeepRunning
         }
       )
       val flowFacade =
         system.actorOf(FlowFacade(system.deadLetters, system.deadLetters, flowShardRegion.ref))
 
-      flowFacade ! GetMessages("", Long.MaxValue, Int.MaxValue)
+      flowFacade ! GetPosts("", Long.MaxValue, Int.MaxValue)
       sender.expectMsg(BadCommand("name empty"))
 
-      flowFacade ! GetMessages("akka", Long.MaxValue, Int.MaxValue)
+      flowFacade ! GetPosts("akka", Long.MaxValue, Int.MaxValue)
       sender.expectMsg(FlowUnknown("akka"))
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
 
-      flowFacade ! GetMessages("akka", Long.MaxValue, Int.MaxValue)
-      sender.expectMsg(Flow.Messages(Vector(Flow.Message(0, "Akka rocks!", time))))
+      flowFacade ! GetPosts("akka", Long.MaxValue, Int.MaxValue)
+      sender.expectMsg(Flow.Posts(Vector(Flow.Post(0, "Akka rocks!", time))))
 
-      flowFacade ! AddMessage("", "Scala rocks!")
+      flowFacade ! AddPost("", "Scala rocks!")
       sender.expectMsg(BadCommand("name empty"))
 
-      flowFacade ! AddMessage("scala", "Scala rocks!")
+      flowFacade ! AddPost("scala", "Scala rocks!")
       sender.expectMsg(FlowUnknown("scala"))
 
-      flowFacade ! AddMessage("akka", "Scala rocks!")
-      sender.expectMsg(Flow.MessageAdded("akka", Flow.Message(1, "Scala rocks!", time)))
+      flowFacade ! AddPost("akka", "Scala rocks!")
+      sender.expectMsg(Flow.PostAdded("akka", Flow.Post(1, "Scala rocks!", time)))
     }
 
     "correctly update DistributedData" in {

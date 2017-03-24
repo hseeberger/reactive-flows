@@ -20,14 +20,14 @@ package proto
 import akka.serialization.SerializerWithStringManifest
 import de.heikoseeberger.reactiveflows.proto.flow.Command.{ Command => CmdPb }
 import de.heikoseeberger.reactiveflows.proto.flow.{
-  AddMessage => AddMessagePb,
+  AddPost => AddPostPb,
   Command => CommandPb,
   Envelope => EnvelopePb,
-  GetMessages => GetMessagesPb,
+  GetPosts => GetPostsPb,
   Instant => InstantPb,
-  Message => MessagePb,
-  MessageAdded => MessageAddedPb,
-  Messages => MessagesPb,
+  Post => PostPb,
+  PostAdded => PostAddedPb,
+  Posts => PostsPb,
   Stop => StopPb
 }
 import java.io.NotSerializableException
@@ -39,75 +39,81 @@ final class FlowSerializer extends SerializerWithStringManifest {
 
   override val identifier = getClass.getName.hashCode // Good idea?
 
-  private final val GetMessagesManifest  = "GetMessages"
-  private final val MessagesManifest     = "Messages"
-  private final val AddMessageManifest   = "AddMessage"
-  private final val MessageAddedManifest = "MessageAdded"
-  private final val EnvelopeManifest     = "Envelope"
-  private final val StopManifest         = "Stop"
+  private final val GetPostsManifest        = "GetPosts"
+  private final val PostsManifest           = "Posts"
+  private final val AddPostManifest         = "AddPost"
+  private final val PostAddedManifest       = "PostAdded"
+  private final val CommandEnvelopeManifest = "CommandEnvelope"
+  private final val StopManifest            = "Stop"
 
   override def manifest(o: AnyRef) =
     o match {
-      case _: GetMessages  => GetMessagesManifest
-      case _: Messages     => MessagesManifest
-      case _: AddMessage   => AddMessageManifest
-      case _: MessageAdded => MessageAddedManifest
-      case Stop            => StopManifest
-      case _: Envelope     => EnvelopeManifest
-      case _               => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
+      case serializable: Serializable =>
+        serializable match {
+          case _: GetPosts        => GetPostsManifest
+          case _: Posts           => PostsManifest
+          case _: AddPost         => AddPostManifest
+          case _: PostAdded       => PostAddedManifest
+          case Stop               => StopManifest
+          case _: CommandEnvelope => CommandEnvelopeManifest
+        }
+      case _ => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
     }
 
   override def toBinary(o: AnyRef) = {
-    def instantPb(i: Instant) = InstantPb(i.getEpochSecond, i.getNano)
-    def messagePb(m: Message) = MessagePb(m.id, m.text, Some(instantPb(m.time)))
     def envelope(name: String, command: Command) = {
       val cmdPb = {
         command match {
-          case GetMessages(id, count) => CmdPb.GetMessages(GetMessagesPb(id, count))
-          case AddMessage(text)       => CmdPb.AddMessage(AddMessagePb(text))
-          case Stop                   => CmdPb.Stop(StopPb())
+          case GetPosts(from, count) => CmdPb.GetPosts(GetPostsPb(from, count))
+          case AddPost(text)         => CmdPb.AddPost(AddPostPb(text))
+          case Stop                  => CmdPb.Stop(StopPb())
         }
       }
       EnvelopePb(name, Some(CommandPb(cmdPb)))
     }
+    def postPb(m: Post)       = PostPb(m.id, m.text, Some(instantPb(m.time)))
+    def instantPb(i: Instant) = InstantPb(i.getEpochSecond, i.getNano)
     val pb =
       o match {
-        case GetMessages(id, count)      => GetMessagesPb(id, count)
-        case Messages(messages)          => MessagesPb(messages.map(messagePb))
-        case AddMessage(text)            => AddMessagePb(text)
-        case MessageAdded(name, message) => MessageAddedPb(name, Some(messagePb(message)))
-        case Stop                        => StopPb()
-        case Envelope(n, command)        => envelope(n, command)
-        case _                           => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
+        case serializable: Serializable =>
+          serializable match {
+            case GetPosts(from, count)          => GetPostsPb(from, count)
+            case Posts(posts)                   => PostsPb(posts.map(postPb))
+            case AddPost(text)                  => AddPostPb(text)
+            case PostAdded(name, post)          => PostAddedPb(name, Some(postPb(post)))
+            case Stop                           => StopPb()
+            case CommandEnvelope(name, command) => envelope(name, command)
+          }
+        case _ => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
       }
     pb.toByteArray
   }
 
   override def fromBinary(bytes: Array[Byte], manifest: String) = {
-    def getMessages(pb: GetMessagesPb)   = GetMessages(pb.id, pb.count)
-    def messages(pb: MessagesPb)         = Messages(pb.messages.map(message)(breakOut))
-    def addMessage(pb: AddMessagePb)     = AddMessage(pb.text)
-    def messageAdded(pb: MessageAddedPb) = MessageAdded(pb.name, message(pb.message.get))
+    def getPosts(pb: GetPostsPb)   = GetPosts(pb.from, pb.count)
+    def posts(pb: PostsPb)         = Posts(pb.posts.map(post)(breakOut))
+    def addPost(pb: AddPostPb)     = AddPost(pb.text)
+    def postAdded(pb: PostAddedPb) = PostAdded(pb.name, post(pb.post.get))
     def envelope(pb: EnvelopePb) = {
       def command(cmdPb: CmdPb) =
         cmdPb match {
-          case CmdPb.GetMessages(pb) => getMessages(pb)
-          case CmdPb.AddMessage(pb)  => addMessage(pb)
-          case CmdPb.Stop(_)         => Stop
-          case _                     => throw new NotSerializableException("command must not be empty!")
+          case CmdPb.GetPosts(pb) => getPosts(pb)
+          case CmdPb.AddPost(pb)  => addPost(pb)
+          case CmdPb.Stop(_)      => Stop
+          case CmdPb.Empty        => throw new NotSerializableException("command must not be empty!")
         }
-      Envelope(pb.name, command(pb.command.get.command))
+      CommandEnvelope(pb.name, command(pb.command.get.command))
     }
-    def message(pb: MessagePb) = Message(pb.id, pb.text, instant(pb.time.get))
+    def post(pb: PostPb)       = Post(pb.id, pb.text, instant(pb.time.get))
     def instant(pb: InstantPb) = Instant.ofEpochSecond(pb.epochSecond, pb.nano)
     manifest match {
-      case GetMessagesManifest  => getMessages(GetMessagesPb.parseFrom(bytes))
-      case MessagesManifest     => messages(MessagesPb.parseFrom(bytes))
-      case AddMessageManifest   => addMessage(AddMessagePb.parseFrom(bytes))
-      case MessageAddedManifest => messageAdded(MessageAddedPb.parseFrom(bytes))
-      case StopManifest         => Stop
-      case EnvelopeManifest     => envelope(EnvelopePb.parseFrom(bytes))
-      case _                    => throw new NotSerializableException(manifest)
+      case GetPostsManifest        => getPosts(GetPostsPb.parseFrom(bytes))
+      case PostsManifest           => posts(PostsPb.parseFrom(bytes))
+      case AddPostManifest         => addPost(AddPostPb.parseFrom(bytes))
+      case PostAddedManifest       => postAdded(PostAddedPb.parseFrom(bytes))
+      case StopManifest            => Stop
+      case CommandEnvelopeManifest => envelope(EnvelopePb.parseFrom(bytes))
+      case _                       => throw new NotSerializableException(manifest)
     }
   }
 }

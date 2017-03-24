@@ -20,7 +20,7 @@ package proto
 import akka.serialization.SerializerWithStringManifest
 import de.heikoseeberger.reactiveflows.proto.flowfacade.{
   AddFlow => AddFlowPb,
-  AddMessage => AddMessagePb,
+  AddPost => AddPostPb,
   FlowAdded => FlowAddedPb,
   FlowDesc => FlowDescPb,
   FlowExists => FlowExistsPb,
@@ -28,7 +28,7 @@ import de.heikoseeberger.reactiveflows.proto.flowfacade.{
   FlowUnknown => FlowUnknownPb,
   Flows => FlowsPb,
   GetFlows => GetFlowsPb,
-  GetMessages => GetMessagesPb,
+  GetPosts => GetPostsPb,
   RemoveFlow => RemoveFlowPb
 }
 import java.io.NotSerializableException
@@ -47,42 +47,48 @@ final class FlowFacadeSerializer extends SerializerWithStringManifest {
   private final val RemoveFlowManifest  = "RemoveFlow"
   private final val FlowRemovedManifest = "FlowRemoved"
   private final val FlowUnknownManifest = "FlowUnknown"
-  private final val GetMessagesManifest = "GetMessages"
-  private final val AddMessageManifest  = "AddMessage"
+  private final val GetPostsManifest    = "GetPosts"
+  private final val AddPostManifest     = "AddPost"
   private final val FlowDescManifest    = "FlowDesc"
 
   override def manifest(o: AnyRef) =
     o match {
-      case GetFlows       => GetFlowsManifest
-      case _: Flows       => FlowsManifest
-      case _: AddFlow     => AddFlowManifest
-      case _: FlowAdded   => FlowAddedManifest
-      case _: FlowExists  => FlowExistsManifest
-      case _: RemoveFlow  => RemoveFlowManifest
-      case _: FlowRemoved => FlowRemovedManifest
-      case _: FlowUnknown => FlowUnknownManifest
-      case _: GetMessages => GetMessagesManifest
-      case _: AddMessage  => AddMessageManifest
-      case _: FlowDesc    => FlowDescManifest
-      case _              => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
+      case serializable: Serializable =>
+        serializable match {
+          case GetFlows       => GetFlowsManifest
+          case _: Flows       => FlowsManifest
+          case _: AddFlow     => AddFlowManifest
+          case _: FlowAdded   => FlowAddedManifest
+          case _: FlowExists  => FlowExistsManifest
+          case _: RemoveFlow  => RemoveFlowManifest
+          case _: FlowRemoved => FlowRemovedManifest
+          case _: FlowUnknown => FlowUnknownManifest
+          case _: GetPosts    => GetPostsManifest
+          case _: AddPost     => AddPostManifest
+          case _: FlowDesc    => FlowDescManifest
+        }
+      case _ => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
     }
 
   override def toBinary(o: AnyRef) = {
     def flowDescPb(d: FlowDesc) = FlowDescPb(d.name, d.label)
     val pb =
       o match {
-        case GetFlows                     => GetFlowsPb()
-        case Flows(flows)                 => FlowsPb(flows.map(flowDescPb)(breakOut))
-        case AddFlow(label)               => AddFlowPb(label)
-        case FlowAdded(desc)              => FlowAddedPb(Some(flowDescPb(desc)))
-        case FlowExists(desc)             => FlowExistsPb(Some(flowDescPb(desc)))
-        case RemoveFlow(name)             => RemoveFlowPb(name)
-        case FlowRemoved(name)            => FlowRemovedPb(name)
-        case FlowUnknown(name)            => FlowUnknownPb(name)
-        case GetMessages(name, id, count) => GetMessagesPb(name, id, count)
-        case AddMessage(name, text)       => AddMessagePb(name, text)
-        case FlowDesc(name, label)        => FlowDescPb(name, label)
-        case _                            => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
+        case serializable: Serializable =>
+          serializable match {
+            case GetFlows                  => GetFlowsPb()
+            case Flows(flows)              => FlowsPb(flows.map(flowDescPb)(breakOut))
+            case AddFlow(label)            => AddFlowPb(label)
+            case FlowAdded(desc)           => FlowAddedPb(Some(flowDescPb(desc)))
+            case FlowExists(desc)          => FlowExistsPb(Some(flowDescPb(desc)))
+            case RemoveFlow(name)          => RemoveFlowPb(name)
+            case FlowRemoved(name)         => FlowRemovedPb(name)
+            case FlowUnknown(name)         => FlowUnknownPb(name)
+            case GetPosts(name, id, count) => GetPostsPb(name, id, count)
+            case AddPost(name, text)       => AddPostPb(name, text)
+            case FlowDesc(name, label)     => FlowDescPb(name, label)
+          }
+        case _ => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
       }
     pb.toByteArray
   }
@@ -95,8 +101,8 @@ final class FlowFacadeSerializer extends SerializerWithStringManifest {
     def removeFlow(pb: RemoveFlowPb)   = RemoveFlow(pb.name)
     def flowRemoved(pb: FlowRemovedPb) = FlowRemoved(pb.name)
     def flowUnknown(pb: FlowUnknownPb) = FlowUnknown(pb.name)
-    def getMessages(pb: GetMessagesPb) = GetMessages(pb.name, pb.id, pb.count)
-    def addMessage(pb: AddMessagePb)   = AddMessage(pb.name, pb.text)
+    def getPosts(pb: GetPostsPb)       = GetPosts(pb.name, pb.from, pb.count)
+    def addPost(pb: AddPostPb)         = AddPost(pb.name, pb.text)
     def flowDesc(pb: FlowDescPb)       = FlowDesc(pb.name, pb.label)
     manifest match {
       case GetFlowsManifest    => GetFlows
@@ -107,8 +113,8 @@ final class FlowFacadeSerializer extends SerializerWithStringManifest {
       case RemoveFlowManifest  => removeFlow(RemoveFlowPb.parseFrom(bytes))
       case FlowRemovedManifest => flowRemoved(FlowRemovedPb.parseFrom(bytes))
       case FlowUnknownManifest => flowUnknown(FlowUnknownPb.parseFrom(bytes))
-      case GetMessagesManifest => getMessages(GetMessagesPb.parseFrom(bytes))
-      case AddMessageManifest  => addMessage(AddMessagePb.parseFrom(bytes))
+      case GetPostsManifest    => getPosts(GetPostsPb.parseFrom(bytes))
+      case AddPostManifest     => addPost(AddPostPb.parseFrom(bytes))
       case FlowDescManifest    => flowDesc(FlowDescPb.parseFrom(bytes))
       case _                   => throw new NotSerializableException(manifest)
     }

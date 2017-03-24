@@ -26,26 +26,26 @@ final class FlowSerializerSpec extends WordSpec with Matchers {
   private val serializer = new FlowSerializer
 
   "FlowSerializer" should {
-    "serialize and deserialize GetMessages" in {
-      val o                  = GetMessages(0, 1)
+    "serialize and deserialize GetPosts" in {
+      val o                  = GetPosts(0, 1)
       val (manifest, binary) = serialize(o)
       serializer.fromBinary(binary, manifest) shouldBe o
     }
 
-    "serialize and deserialize Messages" in {
-      val o                  = Messages(Vector(Message(0, "text", now())))
+    "serialize and deserialize Posts" in {
+      val o                  = Posts(Vector(Post(0, "text", now())))
       val (manifest, binary) = serialize(o)
       serializer.fromBinary(binary, manifest) shouldBe o
     }
 
-    "serialize and deserialize AddMessage" in {
-      val o                  = AddMessage("text")
+    "serialize and deserialize AddPost" in {
+      val o                  = AddPost("text")
       val (manifest, binary) = serialize(o)
       serializer.fromBinary(binary, manifest) shouldBe o
     }
 
-    "serialize and deserialize MessageAdded" in {
-      val o                  = MessageAdded("name", Message(0, "text", now()))
+    "serialize and deserialize PostAdded" in {
+      val o                  = PostAdded("name", Post(0, "text", now()))
       val (manifest, binary) = serialize(o)
       serializer.fromBinary(binary, manifest) shouldBe o
     }
@@ -55,20 +55,20 @@ final class FlowSerializerSpec extends WordSpec with Matchers {
       serializer.fromBinary(binary, manifest) shouldBe Stop
     }
 
-    "serialize and deserialize Envelope with GetMessages" in {
-      val o                  = Envelope("name", GetMessages(0, 1))
+    "serialize and deserialize Envelope with GetPosts" in {
+      val o                  = CommandEnvelope("name", GetPosts(0, 1))
       val (manifest, binary) = serialize(o)
       serializer.fromBinary(binary, manifest) shouldBe o
     }
 
-    "serialize and deserialize Envelope with AddMessage" in {
-      val o                  = Envelope("name", AddMessage("text"))
+    "serialize and deserialize Envelope with AddPost" in {
+      val o                  = CommandEnvelope("name", AddPost("text"))
       val (manifest, binary) = serialize(o)
       serializer.fromBinary(binary, manifest) shouldBe o
     }
 
     "serialize and deserialize Envelope with Stop" in {
-      val o                  = Envelope("name", Stop)
+      val o                  = CommandEnvelope("name", Stop)
       val (manifest, binary) = serialize(o)
       serializer.fromBinary(binary, manifest) shouldBe o
     }

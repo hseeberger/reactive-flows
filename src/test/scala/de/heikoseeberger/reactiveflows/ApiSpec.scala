@@ -43,12 +43,7 @@ import java.time.Instant.now
 import org.scalatest.{ AsyncWordSpec, Matchers, Succeeded }
 import scala.concurrent.duration.DurationInt
 
-final class ApiSpec
-    extends AsyncWordSpec
-    with Matchers
-    with RouteTest
-    with Scalatest
-    with RequestBuilding {
+final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scalatest {
   import Api._
   import EventStreamUnmarshalling._
 
@@ -199,93 +194,93 @@ final class ApiSpec
       }
     }
 
-    "ask FlowFacade GetMessages and respond with OK upon a 'GET /flows/name/messages'" in {
+    "ask FlowFacade GetPosts and respond with OK upon a 'GET /flows/name/posts'" in {
       import Flow._
       val flowFacade = TestProbe()
-      val messages   = Vector(Message(1, "m1", now()), Message(0, "m0", now()))
+      val posts      = Vector(Flow.Post(1, "m1", now()), Flow.Post(0, "m0", now()))
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.GetMessages("akka", 0, 2) =>
-              sender ! Messages(messages)
+            case FlowFacade.GetPosts("akka", 0, 2) =>
+              sender ! Posts(posts)
               NoAutoPilot
         }
       )
-      Get("/flows/akka/messages?count=2") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Get("/flows/akka/posts?count=2") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe OK
-        responseAs[Seq[Message]] shouldBe messages
+        responseAs[Seq[Flow.Post]] shouldBe posts
       }
     }
 
-    "ask FlowFacade GetMessages and respond with NotFound upon a 'GET /flows/name/messages' with an unknown name" in {
+    "ask FlowFacade GetPosts and respond with NotFound upon a 'GET /flows/name/posts' with an unknown name" in {
       import FlowFacade._
       val flowFacade  = TestProbe()
       val flowUnknown = FlowUnknown("unknown")
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case GetMessages("unknown", 1, 1) =>
+            case GetPosts("unknown", 1, 1) =>
               sender ! flowUnknown
               NoAutoPilot
         }
       )
-      Get("/flows/unknown/messages?id=1") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Get("/flows/unknown/posts?id=1") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
     }
 
-    "ask FlowFacade AddMessages and respond with Created upon a 'POST /flows/name/messages'" in {
+    "ask FlowFacade AddPosts and respond with Created upon a 'POST /flows/name/posts'" in {
       import Flow._
-      val flowFacade   = TestProbe()
-      val messageAdded = MessageAdded("akka", Message(0, "text", now()))
+      val flowFacade = TestProbe()
+      val postAdded  = PostAdded("akka", Flow.Post(0, "text", now()))
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.AddMessage("akka", "text") =>
-              sender ! messageAdded
+            case FlowFacade.AddPost("akka", "text") =>
+              sender ! postAdded
               NoAutoPilot
         }
       )
-      val request = Post("/flows/akka/messages", AddMessageRequest("text"))
+      val request = RequestBuilding.Post("/flows/akka/posts", AddPostRequest("text"))
       request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe Created
-        responseAs[MessageAdded] shouldBe messageAdded
+        responseAs[PostAdded] shouldBe postAdded
       }
     }
 
-    "ask FlowFacade AddMessages and respond with NotFound upon a 'POST /flows/name/messages' with an unknown name" in {
+    "ask FlowFacade AddPosts and respond with NotFound upon a 'POST /flows/name/posts' with an unknown name" in {
       import FlowFacade._
       val flowFacade  = TestProbe()
       val flowUnknown = FlowUnknown("unknown")
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case AddMessage("unknown", "text") =>
+            case AddPost("unknown", "text") =>
               sender ! flowUnknown
               NoAutoPilot
         }
       )
-      val request = Post("/flows/unknown/messages", AddMessageRequest("text"))
+      val request = Post("/flows/unknown/posts", AddPostRequest("text"))
       request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
     }
 
-    "ask FlowFacade AddMessages and respond with BadRequest upon a 'POST /flows/name/messages' with an empty text" in {
+    "ask FlowFacade AddPosts and respond with BadRequest upon a 'POST /flows/name/posts' with an empty text" in {
       import FlowFacade._
       val flowFacade = TestProbe()
       val emptyText  = "empty text"
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case AddMessage("akka", "") =>
+            case AddPost("akka", "") =>
               sender ! BadCommand(emptyText)
               NoAutoPilot
         }
       )
-      val request = Post("/flows/akka/messages", AddMessageRequest(""))
+      val request = Post("/flows/akka/posts", AddPostRequest(""))
       request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe BadRequest
         responseAs[BadCommand] shouldBe BadCommand(emptyText)
@@ -317,7 +312,7 @@ final class ApiSpec
               (decode[FlowDesc](data), eventType)
           }
           .collect {
-            case (Right(messageAdded), eventType) => (messageAdded, eventType)
+            case (Right(postAdded), eventType) => (postAdded, eventType)
           }
           .runWith(Sink.seq)
           .map(_ shouldBe Vector((akkaFlow, "added"), (angularJsFlow, "added")))
@@ -326,16 +321,16 @@ final class ApiSpec
 
     "respond with OK upon a GET for '/flow-events'" in {
       import Flow._
-      val mediator              = TestProbe()
-      val akkaMessageAdded      = MessageAdded("akka", Message(0, "Akka", now()))
-      val angularJsMessageAdded = MessageAdded("angularjs", Message(1, "Scala", now()))
+      val mediator           = TestProbe()
+      val akkaPostAdded      = PostAdded("akka", Flow.Post(0, "Akka", now()))
+      val angularJsPostAdded = PostAdded("angularjs", Flow.Post(1, "Scala", now()))
       mediator.setAutoPilot(new AutoPilot {
-        private val messageEventTopic = className[Event]
+        private val postEventTopic = className[Event]
         def run(sender: ActorRef, msg: Any) =
           msg match {
-            case Subscribe(`messageEventTopic`, _, source) =>
-              source ! akkaMessageAdded
-              source ! angularJsMessageAdded
+            case Subscribe(`postEventTopic`, _, source) =>
+              source ! akkaPostAdded
+              source ! angularJsPostAdded
               source ! Status.Success(None)
               NoAutoPilot
           }
@@ -346,13 +341,13 @@ final class ApiSpec
         responseAs[Source[ServerSentEvent, NotUsed]]
           .collect {
             case ServerSentEvent(Some(data), Some(eventType), _, _) =>
-              (decode[MessageAdded](data), eventType)
+              (decode[PostAdded](data), eventType)
           }
           .collect {
-            case (Right(messageAdded), eventType) => (messageAdded, eventType)
+            case (Right(postAdded), eventType) => (postAdded, eventType)
           }
           .runWith(Sink.seq)
-          .map(_ shouldBe Vector((akkaMessageAdded, "added"), (angularJsMessageAdded, "added")))
+          .map(_ shouldBe Vector((akkaPostAdded, "added"), (angularJsPostAdded, "added")))
       }
     }
   }

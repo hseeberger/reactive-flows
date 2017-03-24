@@ -43,7 +43,7 @@ import scala.reflect.ClassTag
 
 object Api {
 
-  final case class AddMessageRequest(text: String)
+  final case class AddPostRequest(text: String)
 
   final val Name = "api"
 
@@ -105,21 +105,21 @@ object Api {
               }
             }
           } ~
-          path("messages") {
+          path("posts") {
             get {
-              parameters('id.as[Long] ? 0L, 'count.as[Int] ? 1.toInt) { (id, count) =>
-                onSuccess(flowFacade ? FlowFacade.GetMessages(flowName, id, count)) {
-                  case Flow.Messages(messages)    => complete(messages)
+              parameters('id.as[Long] ? 0L, 'count.as[Int] ? 1) { (id, count) =>
+                onSuccess(flowFacade ? FlowFacade.GetPosts(flowName, id, count)) {
+                  case Flow.Posts(posts)          => complete(posts)
                   case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
                   // BadCommand not possible, because flowName can't be empty!
                 }
               }
             } ~
             post {
-              entity(as[AddMessageRequest]) {
-                case AddMessageRequest(text) =>
-                  onSuccess(flowFacade ? FlowFacade.AddMessage(flowName, text)) {
-                    case ma: Flow.MessageAdded      => completeCreated(ma.message.id.toString, ma)
+              entity(as[AddPostRequest]) {
+                case AddPostRequest(text) =>
+                  onSuccess(flowFacade ? FlowFacade.AddPost(flowName, text)) {
+                    case ma: Flow.PostAdded         => completeCreated(ma.post.id.toString, ma)
                     case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
                     case bc: BadCommand             => complete(BadRequest -> bc)
                   }
@@ -150,7 +150,7 @@ object Api {
       import Flow._
       def toServerSentEvent(event: Event) =
         event match {
-          case ma: MessageAdded => ServerSentEvent(ma.asJson.noSpaces, "added")
+          case postAdded: PostAdded => ServerSentEvent(postAdded.asJson.noSpaces, "added")
         }
       path("flow-events") {
         get {
