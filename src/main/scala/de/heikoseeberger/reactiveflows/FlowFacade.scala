@@ -21,43 +21,46 @@ import akka.cluster.Cluster
 import akka.cluster.ddata.Replicator.{ Changed, Subscribe }
 import akka.cluster.ddata.{ Key, LWWMap, LWWMapKey, Replicator }
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
-import java.io.{ Serializable => JavaSerializable }
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8
+import java.io.{ Serializable => JavaSerializable }
 
 object FlowFacade {
 
   type CreateFlow = (ActorContext, String, ActorRef) => ActorRef
 
-  sealed trait SerializableMessage extends JavaSerializable
+  sealed trait Serializable extends JavaSerializable
   sealed trait Event
 
   // == Message protocol – start ==
 
-  final case object GetFlows                   extends SerializableMessage
-  final case class Flows(flows: Set[FlowDesc]) extends SerializableMessage
+  final case object GetFlows                   extends Serializable
+  final case class Flows(flows: Set[FlowDesc]) extends Serializable
 
-  final case class AddFlow(label: String)     extends SerializableMessage
-  final case class FlowAdded(desc: FlowDesc)  extends SerializableMessage with Event
-  final case class FlowExists(desc: FlowDesc) extends SerializableMessage
+  final case class AddFlow(label: String)     extends Serializable
+  final case class FlowAdded(desc: FlowDesc)  extends Serializable with Event
+  final case class FlowExists(desc: FlowDesc) extends Serializable
 
-  final case class RemoveFlow(name: String)  extends SerializableMessage
-  final case class FlowRemoved(name: String) extends SerializableMessage with Event
-  final case class FlowUnknown(name: String) extends SerializableMessage
+  final case class RemoveFlow(name: String)  extends Serializable
+  final case class FlowRemoved(name: String) extends Serializable with Event
+  final case class FlowUnknown(name: String) extends Serializable
 
-  final case class GetMessages(name: String, id: Long, count: Int) extends SerializableMessage
+  final case class GetPosts(name: String, from: Long, count: Int) extends Serializable
   // Response by Flow
 
-  final case class AddMessage(name: String, text: String) extends SerializableMessage
+  final case class AddPost(name: String, text: String) extends Serializable
   // Response by Flow
 
-  final case class FlowDesc(name: String, label: String) extends SerializableMessage
+  // == Message protocol – nested objects
+
+  final case class FlowDesc(name: String, label: String) extends Serializable
 
   // == Message protocol – end ==
 
   final val Name = "flow-facade"
 
-  val flows: Key[LWWMap[String, FlowDesc]] = LWWMapKey("flows")
+  val flows: Key[LWWMap[String, FlowDesc]] =
+    LWWMapKey("flows")
 
   private val updateFlowData =
     Replicator.Update(flows, LWWMap.empty[String, FlowDesc], Replicator.WriteLocal) _
@@ -71,8 +74,7 @@ object FlowFacade {
   private def createFlow(context: ActorContext, name: String, mediator: ActorRef) =
     context.actorOf(Flow(mediator), name)
 
-  private def labelToName(label: String) =
-    URLEncoder.encode(label.toLowerCase, UTF_8.name)
+  private def labelToName(label: String) = URLEncoder.encode(label.toLowerCase, UTF_8.name)
 }
 
 final class FlowFacade(mediator: ActorRef,
@@ -98,17 +100,17 @@ final class FlowFacade(mediator: ActorRef,
     case RemoveFlow("")   => badCommand("name empty")
     case RemoveFlow(name) => handleRemoveFlow(name)
 
-    case GetMessages("", _, _)        => badCommand("name empty")
-    case GetMessages(name, id, count) => handleGetMessages(name, id, count)
+    case GetPosts("", _, _)          => badCommand("name empty")
+    case GetPosts(name, from, count) => handleGetPosts(name, from, count)
 
-    case AddMessage("", _)      => badCommand("name empty")
-    case AddMessage(name, text) => handleAddMessage(name, text)
+    case AddPost("", _)      => badCommand("name empty")
+    case AddPost(name, text) => handleAddPost(name, text)
 
     case c @ Changed(`flows`) => flowsByName = c.get(flows).entries
   }
 
   protected def forwardToFlow(name: String, command: Flow.Command): Unit =
-    flowShardRegion.forward(Flow.Envelope(name, command))
+    flowShardRegion.forward(Flow.CommandEnvelope(name, command))
 
   private def handleAddFlow(label: String) =
     forUnknownFlow(label) { name =>
@@ -132,14 +134,14 @@ final class FlowFacade(mediator: ActorRef,
       sender() ! flowRemoved
     }
 
-  private def handleGetMessages(name: String, id: Long, count: Int) =
+  private def handleGetPosts(name: String, from: Long, count: Int) =
     forExistingFlow(name) {
-      forwardToFlow(name, Flow.GetMessages(id, count))
+      forwardToFlow(name, Flow.GetPosts(from, count))
     }
 
-  private def handleAddMessage(name: String, text: String) =
+  private def handleAddPost(name: String, text: String) =
     forExistingFlow(name) {
-      forwardToFlow(name, Flow.AddMessage(text))
+      forwardToFlow(name, Flow.AddPost(text))
     }
 
   private def forUnknownFlow(label: String)(f: String => Unit) = {

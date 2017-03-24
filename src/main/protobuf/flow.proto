@@ -2,20 +2,20 @@ syntax = "proto3";
 
 package de.heikoseeberger.reactiveflows.proto.flow;
 
-message GetMessages {
-    int64 id = 1;
+message GetPosts {
+    int64 from = 1;
     int32 count = 2;
 }
-message Messages {
-    repeated Message messages = 1;
+message Posts {
+    repeated Post posts = 1;
 }
 
-message AddMessage {
+message AddPost {
     string text = 1;
 }
-message MessageAdded {
+message PostAdded {
     string name = 1;
-    Message message = 2;
+    Post post = 2;
 }
 
 message Envelope {
@@ -25,8 +25,8 @@ message Envelope {
 
 message Command {
     oneof command {
-        GetMessages getMessages = 1;
-        AddMessage addMessage = 2;
+        GetPosts getPosts = 1;
+        AddPost addPost = 2;
         Stop stop = 3;
     }
 }
@@ -34,7 +34,7 @@ message Command {
 message Stop {
 }
 
-message Message {
+message Post {
     int64 id = 1;
     string text = 2;
     Instant time = 3;

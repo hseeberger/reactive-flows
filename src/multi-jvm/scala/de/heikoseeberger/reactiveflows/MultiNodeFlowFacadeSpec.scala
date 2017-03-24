@@ -51,7 +51,7 @@ abstract class MultiNodeFlowFacadeSpec
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll {
-  import Flow.{ AddMessage => _, GetMessages => _, _ }
+  import Flow.{ AddPost => _, GetPosts => _, _ }
   import FlowFacade._
   import MultiNodeFlowFacadeSpecConfig._
 
@@ -75,11 +75,11 @@ abstract class MultiNodeFlowFacadeSpec
         implicit val senderRef = sender.ref
         flowFacade ! AddFlow("Akka")
         sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
-        flowFacade ! FlowFacade.AddMessage("akka", "Akka")
+        flowFacade ! FlowFacade.AddPost("akka", "Akka")
         sender.expectMsgPF(
           10.seconds.dilated,
-          hint = """expected `MessageAdded("akka", Flow.Message(0, "Akka", _))`"""
-        ) { case MessageAdded("akka", Flow.Message(0, "Akka", _)) => () }
+          hint = """expected `PostAdded("akka", Flow.Post(0, "Akka", _))`"""
+        ) { case PostAdded("akka", Flow.Post(0, "Akka", _)) => () }
       }
       runOn(node2) {
         val sender             = TestProbe()
@@ -92,14 +92,14 @@ abstract class MultiNodeFlowFacadeSpec
         }
       }
 
-      enterBarrier("message-added")
+      enterBarrier("post-added")
 
       runOn(node2) {
         val sender             = TestProbe()
         implicit val senderRef = sender.ref
-        flowFacade ! GetMessages("akka", 0, 99)
-        sender.expectMsgPF(hint = """expected `Messages(Vector(Message(0, "Akka", _)))`""") {
-          case Messages(Vector(Message(0, "Akka", _))) => ()
+        flowFacade ! GetPosts("akka", 0, 99)
+        sender.expectMsgPF(hint = """expected `Posts(Vector(Post(0, "Akka", _)))`""") {
+          case Posts(Vector(Post(0, "Akka", _))) => ()
         }
       }
     }
