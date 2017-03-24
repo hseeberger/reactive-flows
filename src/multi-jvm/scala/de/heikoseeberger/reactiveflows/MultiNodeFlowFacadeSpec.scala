@@ -24,33 +24,36 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 import scala.concurrent.duration.DurationInt
 
-object FlowFacadeSpecConfig extends MultiNodeConfig {
+object MultiNodeFlowFacadeSpecConfig extends MultiNodeConfig {
 
   val Vector(node1, node2) = Vector(12551, 12552).map(node)
 
   private def node(port: Int) = {
-    commonConfig(ConfigFactory.load())
     val node = role(port.toString)
     nodeConfig(node)(
       ConfigFactory
-        .parseString(s"akka.remote.artery.canonical.port = $port")
+        .parseString(
+          s"""|akka.remote.artery.advanced.aeron-dir = "/tmp/reactive-flows-aeron-$port"
+              |akka.remote.artery.canonical.port     = $port
+              |""".stripMargin
+        )
         .withFallback(ConfigFactory.load())
     )
     node
   }
 }
 
-final class FlowFacadeSpecMultiJvmNode1 extends MultiNodeFlowFacadeSpec
-final class FlowFacadeSpecMultiJvmNode2 extends MultiNodeFlowFacadeSpec
+final class MultiNodeFlowFacadeSpecMultiJvmNode1 extends MultiNodeFlowFacadeSpec
+final class MultiNodeFlowFacadeSpecMultiJvmNode2 extends MultiNodeFlowFacadeSpec
 
 abstract class MultiNodeFlowFacadeSpec
-    extends MultiNodeSpec(FlowFacadeSpecConfig)
+    extends MultiNodeSpec(MultiNodeFlowFacadeSpecConfig)
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll {
   import Flow.{ AddMessage => _, GetMessages => _, _ }
   import FlowFacade._
-  import FlowFacadeSpecConfig._
+  import MultiNodeFlowFacadeSpecConfig._
 
   "FlowFacade" should {
     "work as expected in a cluster" in {
@@ -73,7 +76,10 @@ abstract class MultiNodeFlowFacadeSpec
         flowFacade ! AddFlow("Akka")
         sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
         flowFacade ! FlowFacade.AddMessage("akka", "Akka")
-        sender.expectMsgPF() { case MessageAdded("akka", Flow.Message(0, "Akka", _)) => () }
+        sender.expectMsgPF(
+          10.seconds.dilated,
+          hint = """expected `MessageAdded("akka", Flow.Message(0, "Akka", _))`"""
+        ) { case MessageAdded("akka", Flow.Message(0, "Akka", _)) => () }
       }
       runOn(node2) {
         val sender             = TestProbe()
@@ -92,7 +98,9 @@ abstract class MultiNodeFlowFacadeSpec
         val sender             = TestProbe()
         implicit val senderRef = sender.ref
         flowFacade ! GetMessages("akka", 0, 99)
-        sender.expectMsgPF() { case Messages(Vector(Message(0, "Akka", _))) => () }
+        sender.expectMsgPF(hint = """expected `Messages(Vector(Message(0, "Akka", _)))`""") {
+          case Messages(Vector(Message(0, "Akka", _))) => ()
+        }
       }
     }
   }
