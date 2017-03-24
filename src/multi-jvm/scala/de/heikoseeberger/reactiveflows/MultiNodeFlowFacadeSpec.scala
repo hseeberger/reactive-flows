@@ -32,7 +32,11 @@ object MultiNodeFlowFacadeSpecConfig extends MultiNodeConfig {
     val node = role(port.toString)
     nodeConfig(node)(
       ConfigFactory
-        .parseString(s"akka.remote.artery.canonical.port = $port")
+        .parseString(
+          s"""|akka.remote.artery.advanced.aeron-dir = "/tmp/reactive-flows-aeron-$port"
+              |akka.remote.artery.canonical.port     = $port
+              |""".stripMargin
+        )
         .withFallback(ConfigFactory.load())
     )
     node
