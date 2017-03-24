@@ -4,6 +4,6 @@ reactiveFlowsServices.factory('Flow', function($resource) {
     return $resource('flows');
 });
 
-reactiveFlowsServices.factory('Message', function ($resource) {
-    return $resource('flows/:name/messages', {count:3});
+reactiveFlowsServices.factory('Post', function ($resource) {
+    return $resource('flows/:name/posts', {count:99});
 });

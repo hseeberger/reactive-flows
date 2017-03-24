@@ -16,16 +16,16 @@ body {
     width: 100%;
 }
 
-.messages > div {
+.posts > div {
     border-bottom: solid lightgray 1px;
     padding-top: 10px;
     padding-bottom: 10px;
 }
 
-.messages > div:first-of-type {
+.posts > div:first-of-type {
     border-top: solid lightgray 1px;
 }
 
-.messages .time {
+.posts .time {
     font-style: italic;
 }

@@ -1,6 +1,6 @@
 var reactiveFlowsControllers = angular.module('reactiveFlowsControllers', ['reactiveFlowsServices']);
 
-reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Message', function($scope, Flow, Message) {
+reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Post', function($scope, Flow, Post) {
 
     $scope.flows = [];
 
@@ -8,37 +8,37 @@ reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Message', fu
 
     $scope.currentFlowLabel = null;
 
-    $scope.messages = [];
+    $scope.posts = [];
 
     $scope.shouldShowForm = false;
 
-    $scope.message = new Message({'text': ''});
+    $scope.post = new Post({'text': ''});
 
     $scope.flowBtnClass = function(name) {
-        return ($scope.currentFlowName == name) ? 'btn-primary' : 'btn-info';
+        return ($scope.currentFlowName === name) ? 'btn-primary' : 'btn-info';
     };
 
     $scope.switchCurrentFlow = function(name) {
-        if ($scope.currentFlowName != name) {
+        if ($scope.currentFlowName !== name) {
             console.log('Switching to flow ' + name);
             $scope.currentFlowName = name;
             $scope.currentFlowLabel = $scope.flows.find(function(flow) {
-                return flow.name == name;
+                return flow.name === name;
             }).label;
             $scope.shouldShowForm = true;
-            var messages = Message.query({'name': name}, function() {
-                console.log('Received ' + messages.length + ' messages for flow ' + name);
-                $scope.messages = messages.reverse().map(function(message) {
-                    message.time = Date.parse(message.time);
-                    return message;
+            var posts = Post.query({'name': name}, function() {
+                console.log('Received ' + posts.length + ' posts for flow ' + name);
+                $scope.posts = posts.reverse().map(function(post) {
+                    post.time = Date.parse(post.time);
+                    return post;
                 });
             });
         }
     };
 
-    $scope.sendMessage = function() {
-        $scope.message.$save({'name': $scope.currentFlowName});
-        $scope.message = new Message({'text': ''});
+    $scope.sendPost = function() {
+        $scope.post.$save({'name': $scope.currentFlowName});
+        $scope.post = new Post({'text': ''});
     };
 
     // Initialize flows
@@ -51,36 +51,36 @@ reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Message', fu
     });
 
     // SSE for flows-events
-    var flowSource = new EventSource('/flows-events');
-    flowSource.addEventListener(
+    var flowsEventsSource = new EventSource('/flows-events');
+    flowsEventsSource.addEventListener(
         'added',
         function(event) {
             $scope.$apply(function() {
                 var flow = JSON.parse(event.data);
                 console.log('Received flow added event for flow ' + flow.name);
                 $scope.flows.push(flow);
-                if ($scope.currentFlowName == null)
+                if ($scope.currentFlowName === null)
                     $scope.switchCurrentFlow(flow.name);
             });
         },
         false
     );
-    flowSource.addEventListener(
+    flowsEventsSource.addEventListener(
         'removed',
         function(event) {
             $scope.$apply(function() {
                 console.log('Received flow removed event for flow ' + event.data);
                 $scope.flows = $scope.flows.filter(function(flow) {
-                    return flow.name != event.data;
+                    return flow.name !== event.data;
                 });
                 if ($scope.flows.length > 0)
-                    if ($scope.currentFlowName == event.data)
+                    if ($scope.currentFlowName === event.data)
                         $scope.switchCurrentFlow($scope.flows[0].name);
                     else {
                         $scope.currentFlowName = null;
                         $scope.currentFlowLabel = null;
                         $scope.shouldShowForm = false;
-                        $scope.messages = [];
+                        $scope.Posts = [];
                     }
             });
         },
@@ -88,17 +88,17 @@ reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Message', fu
     );
 
     // SSE for flow-events
-    var messageSource = new EventSource('/flow-events');
-    messageSource.addEventListener(
+    var flowEventsSource = new EventSource('/flow-events');
+    flowEventsSource.addEventListener(
         'added',
         function(event) {
             $scope.$apply(function() {
-                var messageAdded = JSON.parse(event.data);
-                console.log('Received message added event for flow ' + messageAdded.name);
-                if ($scope.currentFlowName == messageAdded.name) {
-                    var message = messageAdded.message;
-                    message.time = Date.parse(message.time);
-                    $scope.messages.push(message);
+                var postAdded = JSON.parse(event.data);
+                console.log('Received post added event for flow ' + postAdded.name);
+                if ($scope.currentFlowName === postAdded.name) {
+                    var post = postAdded.post;
+                    post.time = Date.parse(post.time);
+                    $scope.posts.push(post);
                 }
             });
         },

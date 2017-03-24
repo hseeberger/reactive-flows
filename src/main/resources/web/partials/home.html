@@ -12,11 +12,11 @@
 
     <div class="col-md-1"></div>
 
-    <div class="col-md-4 messages">
-        <div data-ng-repeat="message in messages | orderBy:'time':true">
+    <div class="col-md-4 posts">
+        <div data-ng-repeat="post in posts | orderBy:'time':true">
             <div>
-                <div class="time">{{message.time | date:'yy/MM/dd HH:mm'}}</div>
-                <div class="text">{{message.text}}</div>
+                <div class="time">{{post.time | date:'yy/MM/dd HH:mm'}}</div>
+                <div class="text">{{post.text}}</div>
             </div>
         </div>
     </div>
@@ -27,13 +27,13 @@
         <form name="form" data-ng-show="shouldShowForm" novalidate>
             <fieldset>
                 <div>
-                    <textarea id="text-input" rows="3" placeholder="Enter new message ..."
-                              data-ng-model="message.text" required>
+                    <textarea id="text-input" rows="3" placeholder="Enter new post ..."
+                              data-ng-model="post.text" required>
                     </textarea>
                 </div>
                 <div>
                     <button type="submit" class="btn btn-primary pull-right"
-                            data-ng-click="sendMessage()" data-ng-disabled="form.$invalid">
+                            data-ng-click="sendPost()" data-ng-disabled="form.$invalid">
                         Send to {{currentFlowLabel}}
                     </button>
                 </div>
