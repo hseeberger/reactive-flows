@@ -23,10 +23,11 @@ lazy val `reactive-flows` =
         library.constructrCoordinationEtcd,
         library.log4jCore,
         library.log4jSlf4jImpl,
-        library.akkaHttpTestkit      % Test,
-        library.akkaMultiNodeTestkit % Test,
-        library.akkaTestkit          % Test,
-        library.scalaTest            % Test
+        library.akkaHttpTestkit         % Test,
+        library.akkaMultiNodeTestkit    % Test,
+        library.akkaPersistenceInmemory % Test,
+        library.akkaTestkit             % Test,
+        library.scalaTest               % Test
       )
     )
 
@@ -39,9 +40,10 @@ lazy val library =
     object Version {
       val akka                     = "2.5.0-RC1"
       val akkaHttp                 = "10.0.5"
-      val akkaHttpJson             = "1.13.0"
+      val akkaHttpJson             = "1.14.0"
       val akkaLog4j                = "1.3.0"
       val akkaPersistenceCassandra = "0.50-RC1"
+      val akkaPersistenceInmemory  = "2.5.0.0-RC1"
       val akkaSse                  = "2.0.0"
       val circe                    = "0.7.0"
       val constructr               = "0.16.1"
@@ -58,6 +60,7 @@ lazy val library =
     val akkaHttpTestkit            = "com.typesafe.akka"        %% "akka-http-testkit"            % Version.akkaHttp
     val akkaLog4j                  = "de.heikoseeberger"        %% "akka-log4j"                   % Version.akkaLog4j
     val akkaMultiNodeTestkit       = "com.typesafe.akka"        %% "akka-multi-node-testkit"      % Version.akka
+    val akkaPersistenceInmemory    = "com.github.dnvriend"      %% "akka-persistence-inmemory"    % Version.akkaPersistenceInmemory
     val akkaSse                    = "de.heikoseeberger"        %% "akka-sse"                     % Version.akkaSse
     val akkaTestkit                = "com.typesafe.akka"        %% "akka-testkit"                 % Version.akka
     val circeGeneric               = "io.circe"                 %% "circe-generic"                % Version.circe
@@ -135,7 +138,7 @@ lazy val multiJvmSettings =
   HeaderPlugin.settingsFor(MultiJvm) ++
   Seq(
     unmanagedSourceDirectories.in(MultiJvm) := Vector(scalaSource.in(MultiJvm).value),
-    test.in(Test) := test.in(Test).dependsOn(test.in(MultiJvm)).value
+    test.in(Test) := test.in(MultiJvm).dependsOn(test.in(Test)).value
   )
 
 lazy val pbSettings =

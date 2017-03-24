@@ -66,7 +66,9 @@ final class ApiSpec
       def createAndWatch() = probe.watch(system.actorOf(apiProps))
       val api1             = createAndWatch()
       val api2             = createAndWatch()
-      probe.expectMsgPF() { case Terminated(actor) if actor == api1 || actor == api2 => Succeeded }
+      probe.expectMsgPF(hint = """expected `Terminated(api1 || api2)`""") {
+        case Terminated(actor) if actor == api1 || actor == api2 => Succeeded
+      }
     }
   }
 

@@ -123,12 +123,14 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       replicator ! Subscribe(flows, subscriber.ref)
 
       flowFacade ! AddFlow("Akka")
-      subscriber.expectMsgPF() {
+      subscriber.expectMsgPF(hint = """expected `Changed(`flows`) with Set("akka")`""") {
         case c @ Changed(`flows`) if c.get(flows).entries.keySet == Set("akka") => ()
       }
 
       flowFacade ! RemoveFlow("akka")
-      subscriber.expectMsgPF() { case c @ Changed(`flows`) if c.get(flows).entries.isEmpty => () }
+      subscriber.expectMsgPF(hint = """expected `Changed(`flows`) with entries.isEmpty`""") {
+        case c @ Changed(`flows`) if c.get(flows).entries.isEmpty => ()
+      }
     }
   }
 }

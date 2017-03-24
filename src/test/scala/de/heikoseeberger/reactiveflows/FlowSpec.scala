@@ -45,9 +45,9 @@ final class FlowSpec extends WordSpec with Matchers with AkkaSpec {
       sender.expectMsg(BadCommand("text empty"))
 
       flow ! AddMessage("Akka")
-      val time0 = sender.expectMsgPF() {
-        case MessageAdded(`flowName`, Message(0, "Akka", time)) => time
-      }
+      val time0 = sender.expectMsgPF(
+        hint = """expected `MessageAdded(`flowName`, Message(2, "Akka", _))`"""
+      ) { case MessageAdded(`flowName`, Message(0, "Akka", time)) => time }
       mediator.expectMsg(
         Publish(className[Event], MessageAdded(`flowName`, Message(0, "Akka", time0)))
       )
@@ -58,13 +58,13 @@ final class FlowSpec extends WordSpec with Matchers with AkkaSpec {
       sender.expectMsg(Messages(Vector(Message(0, "Akka", time0))))
 
       flow ! AddMessage("Scala")
-      val time1 = sender.expectMsgPF() {
-        case MessageAdded(`flowName`, Message(1, "Scala", time)) => time
-      }
+      val time1 = sender.expectMsgPF(
+        hint = """expected `MessageAdded(`flowName`, Message(2, "Scala", _))`"""
+      ) { case MessageAdded(`flowName`, Message(1, "Scala", time)) => time }
       flow ! AddMessage("Awesome")
-      val time2 = sender.expectMsgPF() {
-        case MessageAdded(`flowName`, Message(2, "Awesome", time)) => time
-      }
+      val time2 = sender.expectMsgPF(
+        hint = """expected `MessageAdded(`flowName`, Message(2, "Awesome", _))`"""
+      ) { case MessageAdded(`flowName`, Message(2, "Awesome", time)) => time }
 
       flow ! GetMessages(0, 1)
       sender.expectMsg(Messages(Vector(Message(0, "Akka", time0))))
