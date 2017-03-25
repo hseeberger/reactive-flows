@@ -26,7 +26,7 @@ Reactive Flows is a demo project showing a Reactive web app built with:
 
 ```
 curl -s 127.0.0.1:8000/flows | jq
-curl -i -H 'Content-Type: application/json' -d '{ "label": "Akka" }' 127.0.0.1:8000/flows | jq
+curl -s -H 'Content-Type: application/json' -d '{ "label": "Akka" }' 127.0.0.1:8000/flows | jq
 curl -s -H 'Content-Type: application/json' -d '{ "label": "AngularJS" }' 127.0.0.1:8000/flows | jq
 curl -s -H 'Content-Type: application/json' -d '{ "text": "Akka rocks!" }' 127.0.0.1:8000/flows/akka/posts | jq
 curl -s '127.0.0.1:8000/flows/akka/posts?count=99' | jq

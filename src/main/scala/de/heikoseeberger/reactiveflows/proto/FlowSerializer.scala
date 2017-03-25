@@ -71,7 +71,7 @@ final class FlowSerializer extends SerializerWithStringManifest {
       }
       EnvelopePb(name, Some(CommandPb(cmdPb)))
     }
-    def postPb(m: Post)       = PostPb(m.id, m.text, Some(instantPb(m.time)))
+    def postPb(m: Post)       = PostPb(m.seqNo, m.text, Some(instantPb(m.time)))
     def instantPb(i: Instant) = InstantPb(i.getEpochSecond, i.getNano)
     val pb =
       o match {
@@ -90,7 +90,7 @@ final class FlowSerializer extends SerializerWithStringManifest {
   }
 
   override def fromBinary(bytes: Array[Byte], manifest: String) = {
-    def getPosts(pb: GetPostsPb)   = GetPosts(pb.from, pb.count)
+    def getPosts(pb: GetPostsPb)   = GetPosts(pb.seqNo, pb.count)
     def posts(pb: PostsPb)         = Posts(pb.posts.map(post)(breakOut))
     def addPost(pb: AddPostPb)     = AddPost(pb.text)
     def postAdded(pb: PostAddedPb) = PostAdded(pb.name, post(pb.post.get))
@@ -104,7 +104,7 @@ final class FlowSerializer extends SerializerWithStringManifest {
         }
       CommandEnvelope(pb.name, command(pb.command.get.command))
     }
-    def post(pb: PostPb)       = Post(pb.id, pb.text, instant(pb.time.get))
+    def post(pb: PostPb)       = Post(pb.seqNo, pb.text, instant(pb.time.get))
     def instant(pb: InstantPb) = Instant.ofEpochSecond(pb.epochSecond, pb.nano)
     manifest match {
       case GetPostsManifest        => getPosts(GetPostsPb.parseFrom(bytes))

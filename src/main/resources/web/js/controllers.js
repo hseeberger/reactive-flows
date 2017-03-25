@@ -28,7 +28,7 @@ reactiveFlowsControllers.controller('HomeCtrl', ['$scope', 'Flow', 'Post', funct
             $scope.shouldShowForm = true;
             var posts = Post.query({'name': name}, function() {
                 console.log('Received ' + posts.length + ' posts for flow ' + name);
-                $scope.posts = posts.reverse().map(function(post) {
+                $scope.posts = posts.map(function(post) {
                     post.time = Date.parse(post.time);
                     return post;
                 });

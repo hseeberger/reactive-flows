@@ -23,7 +23,7 @@ import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings }
 import akka.persistence.PersistentActor
 import java.io.{ Serializable => JavaSerializable }
 import java.time.Instant
-import scala.math.min
+import scala.math.{ max, min }
 
 object Flow {
 
@@ -33,8 +33,8 @@ object Flow {
 
   // == Message protocol – start ==
 
-  final case class GetPosts(from: Long, count: Int) extends Serializable with Command
-  final case class Posts(posts: Vector[Post])       extends Serializable
+  final case class GetPosts(seqNo: Long, count: Int) extends Serializable with Command
+  final case class Posts(posts: Vector[Post])        extends Serializable
 
   final case class AddPost(text: String)               extends Serializable with Command
   final case class PostAdded(name: String, post: Post) extends Serializable with Event
@@ -49,7 +49,7 @@ object Flow {
 
   // == Message protocol – nested objects
 
-  final case class Post(id: Long, text: String, time: Instant)
+  final case class Post(seqNo: Long, text: String, time: Instant)
 
   // == Message protocol – end ==
 
@@ -76,9 +76,9 @@ final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
   private var posts = Vector.empty[Post]
 
   override def receiveCommand = {
-    case GetPosts(from, _) if from < 0    => badCommand("from < 0")
+    case GetPosts(seqNo, _) if seqNo < 0  => badCommand("seqNo < 0")
     case GetPosts(_, count) if count <= 0 => badCommand("count <= 0")
-    case GetPosts(from, count)            => handleGetPosts(from, count)
+    case GetPosts(seqNo, count)           => handleGetPosts(seqNo, count)
 
     case AddPost("")   => badCommand("text empty")
     case AddPost(text) => handleAddPost(text)
@@ -92,11 +92,11 @@ final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
     // TODO Use Snapshots!
   }
 
-  private def handleGetPosts(from: Long, count: Int) = {
+  private def handleGetPosts(seqNo: Long, count: Int) = {
     // TODO: We can use proper `Long` values in a later step!
-    val fromInt = min(from, Int.MaxValue).toInt
-    val until   = min(fromInt.toLong + count, Int.MaxValue).toInt
-    sender() ! Posts(posts.slice(fromInt, until))
+    val seqNoInt = min(seqNo, Int.MaxValue).toInt
+    val n        = max(posts.size - 1 - seqNoInt, 0)
+    sender() ! Posts(posts.slice(n, n + count))
   }
 
   private def handleAddPost(text: String) = {
@@ -111,6 +111,6 @@ final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
 
   private def handleEvent(event: Event) =
     event match {
-      case PostAdded(_, post) => posts :+= post
+      case PostAdded(_, post) => posts +:= post
     }
 }

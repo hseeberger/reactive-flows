@@ -201,7 +201,7 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
       flowFacade.setAutoPilot(
         (sender: ActorRef, msg: Any) =>
           msg match {
-            case FlowFacade.GetPosts("akka", 0, 2) =>
+            case FlowFacade.GetPosts("akka", Long.MaxValue, 2) =>
               sender ! Posts(posts)
               NoAutoPilot
         }
@@ -224,7 +224,7 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
               NoAutoPilot
         }
       )
-      Get("/flows/unknown/posts?id=1") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Get("/flows/unknown/posts?seqNo=1") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
