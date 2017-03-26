@@ -107,7 +107,7 @@ object Api {
           } ~
           path("posts") {
             get {
-              parameters('id.as[Long] ? 0L, 'count.as[Int] ? 1) { (id, count) =>
+              parameters('seqNo.as[Long] ? Long.MaxValue, 'count.as[Int] ? 1) { (id, count) =>
                 onSuccess(flowFacade ? FlowFacade.GetPosts(flowName, id, count)) {
                   case Flow.Posts(posts)          => complete(posts)
                   case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
@@ -119,7 +119,7 @@ object Api {
               entity(as[AddPostRequest]) {
                 case AddPostRequest(text) =>
                   onSuccess(flowFacade ? FlowFacade.AddPost(flowName, text)) {
-                    case ma: Flow.PostAdded         => completeCreated(ma.post.id.toString, ma)
+                    case ma: Flow.PostAdded         => completeCreated(ma.post.seqNo.toString, ma)
                     case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
                     case bc: BadCommand             => complete(BadRequest -> bc)
                   }
