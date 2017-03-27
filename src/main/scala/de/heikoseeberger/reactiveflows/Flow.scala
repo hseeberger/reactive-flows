@@ -27,6 +27,8 @@ import scala.math.{ max, min }
 
 object Flow {
 
+  // TODO Use receive timeout to actively passivate!
+
   sealed trait Command
   sealed trait Event
   sealed trait Serializable extends JavaSerializable
@@ -47,7 +49,7 @@ object Flow {
   private final case object Terminate
   // No response
 
-  // == Message protocol – nested objects
+  // == Message protocol – nested objects ==
 
   final case class Post(seqNo: Long, text: String, time: Instant)
 

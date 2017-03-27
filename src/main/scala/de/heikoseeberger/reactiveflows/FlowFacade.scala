@@ -53,7 +53,7 @@ object FlowFacade {
 
   // == Message protocol – nested objects
 
-  final case class FlowDesc(name: String, label: String) extends Serializable
+  final case class FlowDesc(name: String, label: String) extends Serializable // needs to be Serializable because of ddata
 
   // == Message protocol – end ==
 
