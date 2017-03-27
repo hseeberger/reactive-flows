@@ -25,17 +25,12 @@ Reactive Flows is a demo project showing a Reactive web app built with:
 ## REST API Examples ##
 
 ```
-curl -s 127.0.0.1:8000/flows | jq
-curl -s -H 'Content-Type: application/json' -d '{ "label": "Akka" }' 127.0.0.1:8000/flows | jq
-curl -s -H 'Content-Type: application/json' -d '{ "label": "AngularJS" }' 127.0.0.1:8000/flows | jq
-curl -s -H 'Content-Type: application/json' -d '{ "text": "Akka rocks!" }' 127.0.0.1:8000/flows/akka/posts | jq
-curl -s '127.0.0.1:8000/flows/akka/posts?count=99' | jq
-
-curl -s -N 127.0.0.1:8000/flow-events
-curl -s -H 'Content-Type: application/json' -d '{ "text": "Akka and AngularJS are a great combination!" }' 127.0.0.1:8000/flows/akka/posts | jq
-curl -s -H 'Content-Type: application/json' -d '{ "text": "AngularJS rocks!" }' 127.0.0.1:8000/flows/angularjs/posts | jq
-
-curl -X DELETE 127.0.0.1:8000/flows/akka
+http localhost:8000/flows
+http localhost:8000/flows label=Akka
+http localhost:8000/flows label=AngularJS
+http localhost:8000/flows/akka/posts text='Akka rocks!'
+http localhost:8000/flows/akka/posts text='Akka really rocks!'
+http localhost:8000/flows/akka/posts count==99
 ```
 
 ## Contribution policy ##

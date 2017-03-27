@@ -63,7 +63,7 @@ abstract class MultiNodeFlowFacadeSpec
         }
       }
 
-      val flowShardRegion = Flow.startSharding(system, system.deadLetters, 20)
+      val flowShardRegion = Flow.startSharding(system, system.deadLetters, 20, 1.hour.dilated)
 
       enterBarrier("ready")
 

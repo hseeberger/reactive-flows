@@ -24,10 +24,11 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8
 import java.io.{ Serializable => JavaSerializable }
+import scala.concurrent.duration.FiniteDuration
 
 object FlowFacade {
 
-  type CreateFlow = (ActorContext, String, ActorRef) => ActorRef
+  type CreateFlow = (ActorContext, String, ActorRef, FiniteDuration) => ActorRef
 
   sealed trait Serializable extends JavaSerializable
   sealed trait Event
@@ -51,8 +52,6 @@ object FlowFacade {
   final case class AddPost(name: String, text: String) extends Serializable
   // Response by Flow
 
-  // == Message protocol – nested objects
-
   final case class FlowDesc(name: String, label: String) extends Serializable // needs to be Serializable because of ddata
 
   // == Message protocol – end ==
@@ -69,10 +68,15 @@ object FlowFacade {
             replicator: ActorRef,
             flowShardRegion: ActorRef,
             createFlow: CreateFlow = createFlow): Props =
-    Props(new FlowFacade(mediator, replicator, flowShardRegion, createFlow))
+    Props(
+      new FlowFacade(mediator, replicator, flowShardRegion, createFlow)
+    )
 
-  private def createFlow(context: ActorContext, name: String, mediator: ActorRef) =
-    context.actorOf(Flow(mediator), name)
+  private def createFlow(context: ActorContext,
+                         name: String,
+                         mediator: ActorRef,
+                         flowPassivationTimeout: FiniteDuration) =
+    context.actorOf(Flow(mediator, flowPassivationTimeout), name)
 
   private def labelToName(label: String) = URLEncoder.encode(label.toLowerCase, UTF_8.name)
 }
@@ -127,7 +131,6 @@ final class FlowFacade(mediator: ActorRef,
     forExistingFlow(name) {
       flowsByName -= name
       replicator ! updateFlowData(_ - name)
-      forwardToFlow(name, Flow.Stop)
       val flowRemoved = FlowRemoved(name)
       mediator ! Publish(className[Event], flowRemoved)
       log.info("Flow with name '{}' removed", name)

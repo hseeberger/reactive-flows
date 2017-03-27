@@ -27,8 +27,7 @@ import de.heikoseeberger.reactiveflows.proto.flow.{
   Instant => InstantPb,
   Post => PostPb,
   PostAdded => PostAddedPb,
-  Posts => PostsPb,
-  Stop => StopPb
+  Posts => PostsPb
 }
 import java.io.NotSerializableException
 import java.time.Instant
@@ -44,7 +43,6 @@ final class FlowSerializer extends SerializerWithStringManifest {
   private final val AddPostManifest         = "AddPost"
   private final val PostAddedManifest       = "PostAdded"
   private final val CommandEnvelopeManifest = "CommandEnvelope"
-  private final val StopManifest            = "Stop"
 
   override def manifest(o: AnyRef) =
     o match {
@@ -54,7 +52,6 @@ final class FlowSerializer extends SerializerWithStringManifest {
           case _: Posts           => PostsManifest
           case _: AddPost         => AddPostManifest
           case _: PostAdded       => PostAddedManifest
-          case Stop               => StopManifest
           case _: CommandEnvelope => CommandEnvelopeManifest
         }
       case _ => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
@@ -66,7 +63,6 @@ final class FlowSerializer extends SerializerWithStringManifest {
         command match {
           case GetPosts(from, count) => CmdPb.GetPosts(GetPostsPb(from, count))
           case AddPost(text)         => CmdPb.AddPost(AddPostPb(text))
-          case Stop                  => CmdPb.Stop(StopPb())
         }
       }
       EnvelopePb(name, Some(CommandPb(cmdPb)))
@@ -81,7 +77,6 @@ final class FlowSerializer extends SerializerWithStringManifest {
             case Posts(posts)                   => PostsPb(posts.map(postPb))
             case AddPost(text)                  => AddPostPb(text)
             case PostAdded(name, post)          => PostAddedPb(name, Some(postPb(post)))
-            case Stop                           => StopPb()
             case CommandEnvelope(name, command) => envelope(name, command)
           }
         case _ => throw new IllegalArgumentException(s"Unknown class: ${o.getClass}!")
@@ -99,7 +94,6 @@ final class FlowSerializer extends SerializerWithStringManifest {
         cmdPb match {
           case CmdPb.GetPosts(pb) => getPosts(pb)
           case CmdPb.AddPost(pb)  => addPost(pb)
-          case CmdPb.Stop(_)      => Stop
           case CmdPb.Empty        => throw new NotSerializableException("command must not be empty!")
         }
       CommandEnvelope(pb.name, command(pb.command.get.command))
@@ -111,7 +105,6 @@ final class FlowSerializer extends SerializerWithStringManifest {
       case PostsManifest           => posts(PostsPb.parseFrom(bytes))
       case AddPostManifest         => addPost(AddPostPb.parseFrom(bytes))
       case PostAddedManifest       => postAdded(PostAddedPb.parseFrom(bytes))
-      case StopManifest            => Stop
       case CommandEnvelopeManifest => envelope(EnvelopePb.parseFrom(bytes))
       case _                       => throw new NotSerializableException(manifest)
     }

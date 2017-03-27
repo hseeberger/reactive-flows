@@ -38,9 +38,10 @@ object Main {
     private val mediator = DistributedPubSub(context.system).mediator
 
     private val flowShardRegion = {
-      val config     = context.system.settings.config
-      val shardCount = config.getInt("reactive-flows.flow-facade.shard-count")
-      Flow.startSharding(context.system, mediator, shardCount)
+      val config             = context.system.settings.config
+      val shardCount         = config.getInt("reactive-flows.flow.shard-count")
+      val passivationTimeout = config.getDuration("reactive-flows.flow.passivation-timeout")
+      Flow.startSharding(context.system, mediator, shardCount, passivationTimeout)
     }
 
     private val flowFacade = {
@@ -68,8 +69,23 @@ object Main {
     }
   }
 
+  // Needed to terminate the actor system on initialization errors of root, e.g. missing configuration settings!
+  final class Terminator(root: ActorRef) extends Actor with ActorLogging {
+
+    context.watch(root)
+
+    override def receive = {
+      case Terminated(`root`) =>
+        log.error("Terminating the system because root terminated!")
+        context.system.terminate()
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     val system = ActorSystem("reactive-flows")
-    Cluster(system).registerOnMemberUp { system.actorOf(Props(new Root), "root") }
+    Cluster(system).registerOnMemberUp {
+      val root = system.actorOf(Props(new Root), "root")
+      system.actorOf(Props(new Terminator(root)), "terminator")
+    }
   }
 }

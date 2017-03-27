@@ -38,18 +38,17 @@ lazy val `reactive-flows` =
 lazy val library =
   new {
     object Version {
-      val akka                     = "2.5.0-RC1"
+      val akka                     = "2.5.0"
       val akkaHttp                 = "10.0.5"
-      val akkaHttpJson             = "1.14.0"
-      val akkaLog4j                = "1.3.0"
-      val akkaPersistenceCassandra = "0.50-RC1"
-      val akkaPersistenceInmemory  = "2.5.0.0-RC1"
+      val akkaHttpJson             = "1.15.0"
+      val akkaLog4j                = "1.4.0"
+      val akkaPersistenceCassandra = "0.51"
+      val akkaPersistenceInmemory  = "2.5.0.0"
       val akkaSse                  = "2.0.0"
-      val circe                    = "0.7.0"
-      val constructr               = "0.16.1"
-      val log4j                    = "2.8.1"
-      val scala                    = "2.12.1"
-      val scalaTest                = "3.0.1"
+      val circe                    = "0.7.1"
+      val constructr               = "0.17.0"
+      val log4j                    = "2.8.2"
+      val scalaTest                = "3.0.3"
       val scalapb                  = com.trueaccord.scalapb.compiler.Version.scalapbVersion
     }
     val akkaClusterSharding        = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Version.akka
@@ -88,8 +87,8 @@ lazy val settings =
 lazy val commonSettings =
   Seq(
     // scalaVersion and crossScalaVersions from .travis.yml via sbt-travisci
-    // scalaVersion := "2.12.1",
-    // crossScalaVersions := Seq(scalaVersion.value, "2.11.8"),
+    // scalaVersion := "2.12.2",
+    // crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
     organization := "de.heikoseeberger",
     licenses += ("Apache 2.0",
                  url("http://www.apache.org/licenses/LICENSE-2.0")),

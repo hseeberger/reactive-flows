@@ -27,11 +27,7 @@ message Command {
     oneof command {
         GetPosts getPosts = 1;
         AddPost addPost = 2;
-        Stop stop = 3;
     }
-}
-
-message Stop {
 }
 
 message Post {

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package de.heikoseeberger.reactiveflows.proto.flows;
+
+message AddFlow {
+    string label = 1;
+}
+message FlowAdded {
+    FlowDesc desc = 1;
+}
+message FlowExists {
+    FlowDesc desc = 1;
+}
+
+message RemoveFlow {
+    string name = 1;
+}
+message FlowRemoved {
+    string name = 1;
+}
+message FlowUnknown {
+    string name = 1;
+}
+
+message FlowDesc {
+    string name = 1;
+    string label = 2;
+}

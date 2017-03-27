@@ -18,6 +18,7 @@ package de.heikoseeberger.reactiveflows
 
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.testkit.TestProbe
+import scala.concurrent.duration.DurationInt
 import org.scalatest.{ Matchers, WordSpec }
 
 final class FlowSpec extends WordSpec with Matchers with AkkaSpec {
@@ -29,7 +30,7 @@ final class FlowSpec extends WordSpec with Matchers with AkkaSpec {
       implicit val senderRef = sender.ref
 
       val mediator = TestProbe()
-      val flow     = system.actorOf(Flow(mediator.ref))
+      val flow     = system.actorOf(Flow(mediator.ref, 1.hour))
       val flowName = flow.path.name
 
       flow ! GetPosts(-1, 1)

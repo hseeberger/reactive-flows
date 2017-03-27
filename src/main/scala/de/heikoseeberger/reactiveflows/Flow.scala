@@ -16,13 +16,13 @@
 
 package de.heikoseeberger.reactiveflows
 
-import akka.actor.{ ActorLogging, ActorRef, ActorSystem, Props }
+import akka.actor.{ ActorLogging, ActorRef, ActorSystem, Props, ReceiveTimeout }
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
-import akka.cluster.sharding.ShardRegion.Passivate
-import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings }
+import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings, ShardRegion }
 import akka.persistence.PersistentActor
 import java.io.{ Serializable => JavaSerializable }
 import java.time.Instant
+import scala.concurrent.duration.FiniteDuration
 import scala.math.{ max, min }
 
 object Flow {
@@ -41,28 +41,23 @@ object Flow {
   final case class AddPost(text: String)               extends Serializable with Command
   final case class PostAdded(name: String, post: Post) extends Serializable with Event
 
-  final case object Stop extends Serializable with Command
-  // No response
-
-  final case class CommandEnvelope(name: String, command: Command) extends Serializable
-
-  private final case object Terminate
-  // No response
-
-  // == Message protocol – nested objects ==
-
   final case class Post(seqNo: Long, text: String, time: Instant)
+  final case class CommandEnvelope(name: String, command: Command) extends Serializable
+  private final case object Terminate
 
   // == Message protocol – end ==
 
-  def apply(mediator: ActorRef): Props =
-    Props(new Flow(mediator))
+  def apply(mediator: ActorRef, passivationTimeout: FiniteDuration): Props =
+    Props(new Flow(mediator, passivationTimeout))
 
-  def startSharding(system: ActorSystem, mediator: ActorRef, shardCount: Int): ActorRef = {
+  def startSharding(system: ActorSystem,
+                    mediator: ActorRef,
+                    shardCount: Int,
+                    passivationTimeout: FiniteDuration): ActorRef = {
     def shardId(name: String) = (name.hashCode.abs % shardCount).toString
     ClusterSharding(system).start(
       className[Flow],
-      Flow(mediator),
+      Flow(mediator, passivationTimeout),
       ClusterShardingSettings(system),
       { case CommandEnvelope(name, command) => (name, command) },
       { case CommandEnvelope(name, _)       => shardId(name) }
@@ -70,12 +65,16 @@ object Flow {
   }
 }
 
-final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
+final class Flow(mediator: ActorRef, passivationTimeout: FiniteDuration)
+    extends PersistentActor
+    with ActorLogging {
   import Flow._
 
   override val persistenceId = s"flow-${self.path.name}"
 
   private var posts = Vector.empty[Post]
+
+  context.setReceiveTimeout(passivationTimeout)
 
   override def receiveCommand = {
     case GetPosts(seqNo, _) if seqNo < 0  => badCommand("seqNo < 0")
@@ -85,8 +84,8 @@ final class Flow(mediator: ActorRef) extends PersistentActor with ActorLogging {
     case AddPost("")   => badCommand("text empty")
     case AddPost(text) => handleAddPost(text)
 
-    case Stop      => context.parent ! Passivate(Terminate) // TODO Is parent really ShardRegion?
-    case Terminate => context.stop(self)
+    case ReceiveTimeout => context.parent ! ShardRegion.Passivate(Terminate)
+    case Terminate      => context.stop(self)
   }
 
   override def receiveRecover = {
