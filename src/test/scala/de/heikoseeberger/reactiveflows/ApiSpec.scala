@@ -37,7 +37,8 @@ import akka.stream.scaladsl.{ Sink, Source }
 import akka.testkit.TestActor.{ AutoPilot, NoAutoPilot }
 import akka.testkit.{ TestDuration, TestProbe }
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import de.heikoseeberger.akkasse.{ EventStreamUnmarshalling, ServerSentEvent }
+import de.heikoseeberger.akkasse.scaladsl.model.ServerSentEvent
+import de.heikoseeberger.akkasse.scaladsl.unmarshalling.EventStreamUnmarshalling
 import io.circe.parser.decode
 import java.time.Instant.now
 import org.scalatest.{ AsyncWordSpec, Matchers, Succeeded }
@@ -307,13 +308,8 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
       request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
         status shouldBe StatusCodes.OK
         responseAs[Source[ServerSentEvent, NotUsed]]
-          .collect {
-            case ServerSentEvent(Some(data), Some(eventType), _, _) =>
-              (decode[FlowDesc](data), eventType)
-          }
-          .collect {
-            case (Right(postAdded), eventType) => (postAdded, eventType)
-          }
+          .collect { case ServerSentEvent(d, Some(tpe), _, _) => (decode[FlowDesc](d), tpe) }
+          .collect { case (Right(postAdded), tpe) => (postAdded, tpe) }
           .runWith(Sink.seq)
           .map(_ shouldBe Vector((akkaFlow, "added"), (angularJsFlow, "added")))
       }
@@ -340,7 +336,7 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
         status shouldBe StatusCodes.OK
         responseAs[Source[ServerSentEvent, NotUsed]]
           .collect {
-            case ServerSentEvent(Some(data), Some(eventType), _, _) =>
+            case ServerSentEvent(data, Some(eventType), _, _) =>
               (decode[PostAdded](data), eventType)
           }
           .collect {
