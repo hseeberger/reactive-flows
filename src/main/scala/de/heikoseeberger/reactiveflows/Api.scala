@@ -34,7 +34,8 @@ import akka.pattern.{ ask, pipe }
 import akka.stream.{ ActorMaterializer, OverflowStrategy }
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
-import de.heikoseeberger.akkasse.{ EventStreamMarshalling, ServerSentEvent }
+import de.heikoseeberger.akkasse.scaladsl.marshalling.EventStreamMarshalling
+import de.heikoseeberger.akkasse.scaladsl.model.ServerSentEvent
 import java.net.InetSocketAddress
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import scala.concurrent.ExecutionContext
