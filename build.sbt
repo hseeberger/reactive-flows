@@ -44,7 +44,7 @@ lazy val library =
       val akkaLog4j                = "1.4.0"
       val akkaPersistenceCassandra = "0.52"
       val akkaPersistenceInmemory  = "2.5.1.0"
-      val akkaSse                  = "3.0.0-RC1"
+      val akkaSse                  = "3.0.0"
       val circe                    = "0.7.1"
       val constructr               = "0.17.0"
       val log4j                    = "2.8.2"
@@ -79,7 +79,6 @@ lazy val library =
 lazy val settings =
   commonSettings ++
   gitSettings ++
-  headerSettings ++
   dockerSettings ++
   multiJvmSettings ++
   pbSettings
@@ -90,9 +89,9 @@ lazy val commonSettings =
     // scalaVersion := "2.12.2",
     // crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
     organization := "de.heikoseeberger",
-    licenses += ("Apache 2.0",
-                 url("http://www.apache.org/licenses/LICENSE-2.0")),
-    mappings.in(Compile, packageBin) += baseDirectory.in(ThisBuild).value / "LICENSE" -> "LICENSE",
+    organizationName := "Heiko Seeberger",
+    startYear := Some(2015),
+    licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0")),
     scalacOptions ++= Seq(
       "-unchecked",
       "-deprecation",
@@ -100,25 +99,19 @@ lazy val commonSettings =
       "-target:jvm-1.8",
       "-encoding", "UTF-8"
     ),
-    javacOptions ++= Seq(
-      "-source", "1.8",
-      "-target", "1.8"
-    ),
     unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
     unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value),
     publishArtifact.in(Compile, packageDoc) := false,
-    publishArtifact.in(Compile, packageSrc) := false
+    publishArtifact.in(Compile, packageSrc) := false,
+    shellPrompt in ThisBuild := { state =>
+      val project = Project.extract(state).currentRef.project
+      s"[$project]> "
+    }
 )
 
 lazy val gitSettings =
   Seq(
     git.useGitDescribe := true
-  )
-
-import de.heikoseeberger.sbtheader.license._
-lazy val headerSettings =
-  Seq(
-    headers := Map("scala" -> Apache2_0("2015", "Heiko Seeberger"))
   )
 
 lazy val dockerSettings =
@@ -133,10 +126,10 @@ lazy val dockerSettings =
 
 lazy val multiJvmSettings =
   automateScalafmtFor(MultiJvm) ++
-  AutomateHeaderPlugin.automateFor(MultiJvm) ++
-  HeaderPlugin.settingsFor(MultiJvm) ++
+  headerSettings(MultiJvm) ++
+  automateHeaderSettings(MultiJvm) ++
   Seq(
-    unmanagedSourceDirectories.in(MultiJvm) := Vector(scalaSource.in(MultiJvm).value),
+    unmanagedSourceDirectories.in(MultiJvm) := Seq(scalaSource.in(MultiJvm).value),
     test.in(Test) := test.in(MultiJvm).dependsOn(test.in(Test)).value
   )
 
