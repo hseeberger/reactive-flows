@@ -79,6 +79,7 @@ lazy val library =
 lazy val settings =
   commonSettings ++
   gitSettings ++
+  scalafmtSettings ++
   dockerSettings ++
   multiJvmSettings ++
   pbSettings
@@ -107,25 +108,32 @@ lazy val commonSettings =
       val project = Project.extract(state).currentRef.project
       s"[$project]> "
     }
-)
+  )
 
 lazy val gitSettings =
   Seq(
     git.useGitDescribe := true
   )
 
+lazy val scalafmtSettings =
+  Seq(
+    scalafmtOnCompile := true,
+    scalafmtOnCompile.in(Sbt) := false,
+    scalafmtVersion := "1.1.0"
+  )
+
 lazy val dockerSettings =
   Seq(
     daemonUser.in(Docker) := "root",
     maintainer.in(Docker) := "Heiko Seeberger",
-    version.in(Docker)    := "latest",
-    dockerBaseImage       := "openjdk:8",
-    dockerExposedPorts    := Vector(8000),
-    dockerRepository      := Some("hseeberger")
+    version.in(Docker) := "latest",
+    dockerBaseImage := "openjdk:8",
+    dockerExposedPorts := Vector(8000),
+    dockerRepository := Some("hseeberger")
   )
 
 lazy val multiJvmSettings =
-  automateScalafmtFor(MultiJvm) ++
+  inConfig(MultiJvm)(scalafmtSettings) ++
   headerSettings(MultiJvm) ++
   automateHeaderSettings(MultiJvm) ++
   Seq(
