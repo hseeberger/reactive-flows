@@ -30,15 +30,15 @@ import akka.http.scaladsl.model.StatusCodes.{
   PermanentRedirect
 }
 import akka.http.scaladsl.model.headers.Location
+import akka.http.scaladsl.model.sse.ServerSentEvent
 import akka.http.scaladsl.model.{ StatusCodes, Uri }
 import akka.http.scaladsl.testkit.RouteTest
 import akka.http.scaladsl.testkit.TestFrameworkInterface.Scalatest
+import akka.http.scaladsl.unmarshalling.sse.EventStreamUnmarshalling
 import akka.stream.scaladsl.{ Sink, Source }
 import akka.testkit.TestActor.{ AutoPilot, NoAutoPilot }
 import akka.testkit.{ TestDuration, TestProbe }
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import de.heikoseeberger.akkasse.scaladsl.model.ServerSentEvent
-import de.heikoseeberger.akkasse.scaladsl.unmarshalling.EventStreamUnmarshalling
 import io.circe.parser.decode
 import java.time.Instant.now
 import org.scalatest.{ AsyncWordSpec, Matchers, Succeeded }
