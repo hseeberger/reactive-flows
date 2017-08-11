@@ -5,7 +5,7 @@
 lazy val `reactive-flows` =
   project
     .in(file("."))
-    .configs(MultiJvm)
+//    .configs(MultiJvm)
     .enablePlugins(AutomateHeaderPlugin, GitVersioning, DockerPlugin, JavaAppPackaging)
     .settings(settings)
     .settings(
@@ -16,7 +16,6 @@ lazy val `reactive-flows` =
         library.akkaHttpCirce,
         library.akkaLog4j,
         library.akkaPersistenceCassandra,
-        library.akkaSse,
         library.circeGeneric,
         library.circeJava8,
         library.constructr,
@@ -38,13 +37,12 @@ lazy val `reactive-flows` =
 lazy val library =
   new {
     object Version {
-      val akka                     = "2.5.3"
+      val akka                     = "2.5.4"
       val akkaHttp                 = "10.0.9"
       val akkaHttpJson             = "1.17.0"
       val akkaLog4j                = "1.4.0"
       val akkaPersistenceCassandra = "0.54"
       val akkaPersistenceInmemory  = "2.5.1.1"
-      val akkaSse                  = "3.0.0"
       val circe                    = "0.8.0"
       val constructr               = "0.17.0"
       val log4j                    = "2.8.2"
@@ -60,7 +58,6 @@ lazy val library =
     val akkaLog4j                  = "de.heikoseeberger"        %% "akka-log4j"                   % Version.akkaLog4j
     val akkaMultiNodeTestkit       = "com.typesafe.akka"        %% "akka-multi-node-testkit"      % Version.akka
     val akkaPersistenceInmemory    = "com.github.dnvriend"      %% "akka-persistence-inmemory"    % Version.akkaPersistenceInmemory
-    val akkaSse                    = "de.heikoseeberger"        %% "akka-sse"                     % Version.akkaSse
     val akkaTestkit                = "com.typesafe.akka"        %% "akka-testkit"                 % Version.akka
     val circeGeneric               = "io.circe"                 %% "circe-generic"                % Version.circe
     val circeJava8                 = "io.circe"                 %% "circe-java8"                  % Version.circe
@@ -81,14 +78,13 @@ lazy val settings =
   gitSettings ++
   scalafmtSettings ++
   dockerSettings ++
-  multiJvmSettings ++
+//  multiJvmSettings ++
   pbSettings
 
 lazy val commonSettings =
   Seq(
-    // scalaVersion and crossScalaVersions from .travis.yml via sbt-travisci
-    // scalaVersion := "2.12.2",
-    // crossScalaVersions := Seq(scalaVersion.value, "2.11.11"),
+    // scalaVersion from .travis.yml via sbt-travisci
+    // scalaVersion := "2.12.3",
     organization := "de.heikoseeberger",
     organizationName := "Heiko Seeberger",
     startYear := Some(2015),
@@ -127,19 +123,19 @@ lazy val dockerSettings =
     daemonUser.in(Docker) := "root",
     maintainer.in(Docker) := "Heiko Seeberger",
     version.in(Docker) := "latest",
-    dockerBaseImage := "openjdk:8",
+    dockerBaseImage := "openjdk:8u141-jdk",
     dockerExposedPorts := Vector(8000),
     dockerRepository := Some("hseeberger")
   )
 
-lazy val multiJvmSettings =
-  inConfig(MultiJvm)(scalafmtSettings) ++
-  headerSettings(MultiJvm) ++
-  automateHeaderSettings(MultiJvm) ++
-  Seq(
-    unmanagedSourceDirectories.in(MultiJvm) := Seq(scalaSource.in(MultiJvm).value),
-    test.in(Test) := test.in(MultiJvm).dependsOn(test.in(Test)).value
-  )
+// lazy val multiJvmSettings =
+//   inConfig(MultiJvm)(scalafmtSettings) ++
+//   headerSettings(MultiJvm) ++
+//   automateHeaderSettings(MultiJvm) ++
+//   Seq(
+//     unmanagedSourceDirectories.in(MultiJvm) := Seq(scalaSource.in(MultiJvm).value),
+//     test.in(Test) := test.in(MultiJvm).dependsOn(test.in(Test)).value
+//   )
 
 lazy val pbSettings =
   Seq(

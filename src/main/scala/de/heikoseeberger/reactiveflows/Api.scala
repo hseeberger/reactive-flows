@@ -28,14 +28,14 @@ import akka.http.scaladsl.model.StatusCodes.{
   NotFound,
   PermanentRedirect
 }
+import akka.http.scaladsl.marshalling.sse.EventStreamMarshalling
 import akka.http.scaladsl.model.headers.Location
+import akka.http.scaladsl.model.sse.ServerSentEvent
 import akka.http.scaladsl.server.{ Directives, Route }
 import akka.pattern.{ ask, pipe }
 import akka.stream.{ ActorMaterializer, OverflowStrategy }
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
-import de.heikoseeberger.akkasse.scaladsl.marshalling.EventStreamMarshalling
-import de.heikoseeberger.akkasse.scaladsl.model.ServerSentEvent
 import java.net.InetSocketAddress
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import scala.concurrent.ExecutionContext
