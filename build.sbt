@@ -99,11 +99,7 @@ lazy val commonSettings =
     unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
     unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value),
     publishArtifact.in(Compile, packageDoc) := false,
-    publishArtifact.in(Compile, packageSrc) := false,
-    shellPrompt in ThisBuild := { state =>
-      val project = Project.extract(state).currentRef.project
-      s"[$project]> "
-    }
+    publishArtifact.in(Compile, packageSrc) := false
   )
 
 lazy val gitSettings =
