@@ -5,7 +5,7 @@
 lazy val `reactive-flows` =
   project
     .in(file("."))
-//    .configs(MultiJvm)
+    .configs(MultiJvm)
     .enablePlugins(AutomateHeaderPlugin, GitVersioning, DockerPlugin, JavaAppPackaging)
     .settings(settings)
     .settings(
@@ -38,15 +38,15 @@ lazy val library =
   new {
     object Version {
       val akka                     = "2.5.4"
-      val akkaHttp                 = "10.0.9"
-      val akkaHttpJson             = "1.17.0"
-      val akkaLog4j                = "1.4.0"
-      val akkaPersistenceCassandra = "0.54"
+      val akkaHttp                 = "10.0.10"
+      val akkaHttpJson             = "1.18.0"
+      val akkaLog4j                = "1.5.0"
+      val akkaPersistenceCassandra = "0.55"
       val akkaPersistenceInmemory  = "2.5.1.1"
       val circe                    = "0.8.0"
       val constructr               = "0.17.0"
-      val log4j                    = "2.8.2"
-      val scalaTest                = "3.0.3"
+      val log4j                    = "2.9.0"
+      val scalaTest                = "3.0.4"
       val scalapb                  = com.trueaccord.scalapb.compiler.Version.scalapbVersion
     }
     val akkaClusterSharding        = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Version.akka
@@ -78,7 +78,7 @@ lazy val settings =
   gitSettings ++
   scalafmtSettings ++
   dockerSettings ++
-//  multiJvmSettings ++
+  multiJvmSettings ++
   pbSettings
 
 lazy val commonSettings =
@@ -124,14 +124,14 @@ lazy val dockerSettings =
     dockerRepository := Some("hseeberger")
   )
 
-// lazy val multiJvmSettings =
-//   inConfig(MultiJvm)(scalafmtSettings) ++
-//   headerSettings(MultiJvm) ++
-//   automateHeaderSettings(MultiJvm) ++
-//   Seq(
-//     unmanagedSourceDirectories.in(MultiJvm) := Seq(scalaSource.in(MultiJvm).value),
-//     test.in(Test) := test.in(MultiJvm).dependsOn(test.in(Test)).value
-//   )
+lazy val multiJvmSettings =
+  inConfig(MultiJvm)(scalafmtSettings) ++
+  headerSettings(MultiJvm) ++
+  automateHeaderSettings(MultiJvm) ++
+  Seq(
+    unmanagedSourceDirectories.in(MultiJvm) := Seq(scalaSource.in(MultiJvm).value),
+    test.in(Test) := test.in(MultiJvm).dependsOn(test.in(Test)).value
+  )
 
 lazy val pbSettings =
   Seq(
