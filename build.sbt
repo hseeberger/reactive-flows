@@ -45,7 +45,7 @@ lazy val library =
       val akkaPersistenceInmemory  = "2.5.1.1"
       val circe                    = "0.8.0"
       val constructr               = "0.17.0"
-      val log4j                    = "2.9.0"
+      val log4j                    = "2.9.1"
       val scalaTest                = "3.0.4"
       val scalapb                  = com.trueaccord.scalapb.compiler.Version.scalapbVersion
     }
@@ -111,7 +111,7 @@ lazy val scalafmtSettings =
   Seq(
     scalafmtOnCompile := true,
     scalafmtOnCompile.in(Sbt) := false,
-    scalafmtVersion := "1.2.0"
+    scalafmtVersion := "1.3.0"
   )
 
 lazy val dockerSettings =
