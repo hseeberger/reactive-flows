@@ -9,4 +9,4 @@ addSbtPlugin("de.heikoseeberger" % "sbt-header"          % "3.0.2")
 addSbtPlugin("org.foundweekends" % "sbt-bintray"         % "0.5.1")
 
 libraryDependencies += "org.slf4j"              % "slf4j-nop"       % "1.7.25" // Needed by sbt-git
-libraryDependencies += "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.5"
+libraryDependencies += "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.6"

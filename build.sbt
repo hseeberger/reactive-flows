@@ -37,11 +37,11 @@ lazy val `reactive-flows` =
 lazy val library =
   new {
     object Version {
-      val akka                     = "2.5.4"
+      val akka                     = "2.5.6"
       val akkaHttp                 = "10.0.10"
       val akkaHttpJson             = "1.18.0"
       val akkaLog4j                = "1.5.0"
-      val akkaPersistenceCassandra = "0.55"
+      val akkaPersistenceCassandra = "0.56"
       val akkaPersistenceInmemory  = "2.5.1.1"
       val circe                    = "0.8.0"
       val constructr               = "0.17.0"
@@ -125,6 +125,7 @@ lazy val dockerSettings =
   )
 
 lazy val multiJvmSettings =
+  com.typesafe.sbt.SbtMultiJvm.multiJvmSettings ++
   inConfig(MultiJvm)(scalafmtSettings) ++
   headerSettings(MultiJvm) ++
   automateHeaderSettings(MultiJvm) ++
