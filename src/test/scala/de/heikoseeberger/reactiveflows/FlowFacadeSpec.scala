@@ -44,7 +44,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       sender.expectMsg(Flows(Set.empty))
 
       flowFacade ! AddFlow("")
-      sender.expectMsg(BadCommand("label empty"))
+      sender.expectMsg(InvalidCommand("label empty"))
 
       flowFacade ! AddFlow("Akka")
       sender.expectMsg(FlowAdded(FlowDesc("akka", "Akka")))
@@ -57,7 +57,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       sender.expectMsg(Flows(Set(FlowDesc("akka", "Akka"))))
 
       flowFacade ! RemoveFlow("")
-      sender.expectMsg(BadCommand("name empty"))
+      sender.expectMsg(InvalidCommand("name empty"))
 
       flowFacade ! RemoveFlow("akka")
       sender.expectMsg(FlowRemoved("akka"))
@@ -92,7 +92,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
         system.actorOf(FlowFacade(system.deadLetters, system.deadLetters, flowShardRegion.ref))
 
       flowFacade ! GetPosts("", Long.MaxValue, Int.MaxValue)
-      sender.expectMsg(BadCommand("name empty"))
+      sender.expectMsg(InvalidCommand("name empty"))
 
       flowFacade ! GetPosts("akka", Long.MaxValue, Int.MaxValue)
       sender.expectMsg(FlowUnknown("akka"))
@@ -104,7 +104,7 @@ final class FlowFacadeSpec extends WordSpec with Matchers with AkkaSpec {
       sender.expectMsg(Flow.Posts(Vector(Flow.Post(0, "Akka rocks!", time))))
 
       flowFacade ! AddPost("", "Scala rocks!")
-      sender.expectMsg(BadCommand("name empty"))
+      sender.expectMsg(InvalidCommand("name empty"))
 
       flowFacade ! AddPost("scala", "Scala rocks!")
       sender.expectMsg(FlowUnknown("scala"))

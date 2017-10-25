@@ -150,13 +150,13 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
         (sender: ActorRef, msg: Any) =>
           msg match {
             case AddFlow("") =>
-              sender ! BadCommand(emptyLabel)
+              sender ! InvalidCommand(emptyLabel)
               NoAutoPilot
         }
       )
       Post("/flows", AddFlow("")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe BadRequest
-        responseAs[BadCommand] shouldBe BadCommand(emptyLabel)
+        responseAs[InvalidCommand] shouldBe InvalidCommand(emptyLabel)
       }
     }
 
@@ -277,14 +277,14 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
         (sender: ActorRef, msg: Any) =>
           msg match {
             case AddPost("akka", "") =>
-              sender ! BadCommand(emptyText)
+              sender ! InvalidCommand(emptyText)
               NoAutoPilot
         }
       )
       val request = Post("/flows/akka/posts", AddPostRequest(""))
       request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
         status shouldBe BadRequest
-        responseAs[BadCommand] shouldBe BadCommand(emptyText)
+        responseAs[InvalidCommand] shouldBe InvalidCommand(emptyText)
       }
     }
 

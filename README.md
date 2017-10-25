@@ -22,14 +22,37 @@ Reactive Flows is a demo project showing a Reactive web app built with:
 - Important: Reactive Flows uses [ConstructR](https://github.com/hseeberger/constructr) for initializing the cluster; make sure etcd is started and available
 - Important: Reactive Flows uses the Cassandra plugin for Akka Persistence; make sure Cassandra is started and available under the configured contact point
 
+### Run in sbt
+
+First start Cassandra and etcd:
+
+```
+docker-compose rm -f -s -v
+docker-compose up etcd cassandra
+```
+
+Then start a first instance in sbt:
+
+```
+reStart --- -Dcassandra-journal.contact-points.0=127.0.0.1:9042 -Dconstructr.coordination.host=127.0.0.1
+```
+
+To start another instance in sbt, provide additional configuration settings:
+
+```
+reStart --- -Dcassandra-journal.contact-points.0=127.0.0.1:9042 -Dconstructr.coordination.host=127.0.0.1 -Dreactive-flows.api.port=8001 -Dakka.remote.artery.canonical.port=25521
+```
+
 ## REST API Examples ##
 
 ```
 http localhost:8000/flows
 http localhost:8000/flows label=Akka
-http localhost:8000/flows label=AngularJS
+http localhost:8000/flows label=Scala
 http localhost:8000/flows/akka/posts text='Akka rocks!'
 http localhost:8000/flows/akka/posts text='Akka really rocks!'
+http localhost:8000/flows/scala/posts text='Scala rocks, too!'
+http localhost:8000/flows/scala/posts text='Scala really rocks, too!'
 http localhost:8000/flows/akka/posts count==99
 ```
 

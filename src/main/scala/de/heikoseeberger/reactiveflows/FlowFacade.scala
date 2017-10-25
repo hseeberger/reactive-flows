@@ -98,16 +98,16 @@ final class FlowFacade(mediator: ActorRef,
   override def receive = {
     case GetFlows => sender() ! Flows(flowsByName.valuesIterator.to[Set])
 
-    case AddFlow("")    => badCommand("label empty")
+    case AddFlow("")    => sender() ! InvalidCommand("label empty")
     case AddFlow(label) => handleAddFlow(label)
 
-    case RemoveFlow("")   => badCommand("name empty")
+    case RemoveFlow("")   => sender() ! InvalidCommand("name empty")
     case RemoveFlow(name) => handleRemoveFlow(name)
 
-    case GetPosts("", _, _)          => badCommand("name empty")
+    case GetPosts("", _, _)          => sender() ! InvalidCommand("name empty")
     case GetPosts(name, from, count) => handleGetPosts(name, from, count)
 
-    case AddPost("", _)      => badCommand("name empty")
+    case AddPost("", _)      => sender() ! InvalidCommand("name empty")
     case AddPost(name, text) => handleAddPost(name, text)
 
     case c @ Changed(`flows`) => flowsByName = c.get(flows).entries

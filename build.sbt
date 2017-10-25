@@ -119,7 +119,7 @@ lazy val dockerSettings =
     daemonUser.in(Docker) := "root",
     maintainer.in(Docker) := "Heiko Seeberger",
     version.in(Docker) := "latest",
-    dockerBaseImage := "openjdk:8u141-jdk",
+    dockerBaseImage := "openjdk:8u141-slim",
     dockerExposedPorts := Vector(8000),
     dockerRepository := Some("hseeberger")
   )

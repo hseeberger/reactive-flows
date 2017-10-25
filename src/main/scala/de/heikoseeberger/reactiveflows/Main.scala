@@ -28,12 +28,15 @@ import akka.actor.{
 import akka.cluster.Cluster
 import akka.cluster.ddata.DistributedData
 import akka.cluster.pubsub.DistributedPubSub
+import akka.stream.ActorMaterializer
 
 object Main {
 
   final class Root extends Actor with ActorLogging {
 
     override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
+
+    private implicit val mat = ActorMaterializer()
 
     private val mediator = DistributedPubSub(context.system).mediator
 

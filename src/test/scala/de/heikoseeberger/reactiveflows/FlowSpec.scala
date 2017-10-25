@@ -34,16 +34,16 @@ final class FlowSpec extends WordSpec with Matchers with AkkaSpec {
       val flowName = flow.path.name
 
       flow ! GetPosts(-1, 1)
-      sender.expectMsg(BadCommand("seqNo < 0"))
+      sender.expectMsg(InvalidCommand("seqNo < 0"))
 
       flow ! GetPosts(0, 0)
-      sender.expectMsg(BadCommand("count <= 0"))
+      sender.expectMsg(InvalidCommand("count <= 0"))
 
       flow ! GetPosts(Long.MaxValue, 1)
       sender.expectMsg(Posts(Vector.empty))
 
       flow ! AddPost("")
-      sender.expectMsg(BadCommand("text empty"))
+      sender.expectMsg(InvalidCommand("text empty"))
 
       flow ! AddPost("Akka")
       val time0 =

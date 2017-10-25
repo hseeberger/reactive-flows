@@ -33,7 +33,7 @@ import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.sse.ServerSentEvent
 import akka.http.scaladsl.server.{ Directives, Route }
 import akka.pattern.{ ask, pipe }
-import akka.stream.{ ActorMaterializer, OverflowStrategy }
+import akka.stream.{ Materializer, OverflowStrategy }
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import java.net.InetSocketAddress
@@ -53,7 +53,7 @@ object Api {
             flowFacade: ActorRef,
             flowFacadeTimeout: FiniteDuration,
             mediator: ActorRef,
-            eventBufferSize: Int): Props =
+            eventBufferSize: Int)(implicit mat: Materializer): Props =
     Props(new Api(address, port, flowFacade, flowFacadeTimeout, mediator, eventBufferSize))
 
   def route(flowFacade: ActorRef,
@@ -78,51 +78,50 @@ object Api {
     }
 
     def flows = {
+      import FlowFacade._
       implicit val timeout = flowFacadeTimeout
       pathPrefix("flows") {
         pathEnd {
-          import FlowFacade._
           get {
             complete((flowFacade ? GetFlows).mapTo[Flows].map(_.flows))
           } ~
           post {
             entity(as[AddFlow]) { addFlow =>
               onSuccess(flowFacade ? addFlow) {
-                case fa: FlowAdded  => completeCreated(fa.desc.name, fa)
-                case fe: FlowExists => complete(Conflict -> fe)
-                case bc: BadCommand => complete(BadRequest -> bc)
+                case ic: InvalidCommand => complete(BadRequest -> ic)
+                case fe: FlowExists     => complete(Conflict -> fe)
+                case fa: FlowAdded      => completeCreated(fa.desc.name, fa)
               }
             }
           }
         } ~
         pathPrefix(Segment) { flowName =>
           pathEnd {
-            import FlowFacade._
             delete {
               onSuccess(flowFacade ? RemoveFlow(flowName)) {
-                case _: FlowRemoved  => complete(NoContent)
-                case fu: FlowUnknown => complete(NotFound -> fu)
-                // BadCommand not possible, because flowName can't be empty!
+                case ic: InvalidCommand => complete(BadRequest -> ic)
+                case fu: FlowUnknown    => complete(NotFound -> fu)
+                case _: FlowRemoved     => complete(NoContent)
               }
             }
           } ~
           path("posts") {
             get {
               parameters('seqNo.as[Long] ? Long.MaxValue, 'count.as[Int] ? 1) { (id, count) =>
-                onSuccess(flowFacade ? FlowFacade.GetPosts(flowName, id, count)) {
-                  case Flow.Posts(posts)          => complete(posts)
-                  case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
-                  // BadCommand not possible, because flowName can't be empty!
+                onSuccess(flowFacade ? GetPosts(flowName, id, count)) {
+                  case ic: InvalidCommand => complete(BadRequest -> ic)
+                  case fu: FlowUnknown    => complete(NotFound -> fu)
+                  case Flow.Posts(posts)  => complete(posts)
                 }
               }
             } ~
             post {
               entity(as[AddPostRequest]) {
                 case AddPostRequest(text) =>
-                  onSuccess(flowFacade ? FlowFacade.AddPost(flowName, text)) {
-                    case ma: Flow.PostAdded         => completeCreated(ma.post.seqNo.toString, ma)
-                    case fu: FlowFacade.FlowUnknown => complete(NotFound -> fu)
-                    case bc: BadCommand             => complete(BadRequest -> bc)
+                  onSuccess(flowFacade ? AddPost(flowName, text)) {
+                    case ic: InvalidCommand => complete(BadRequest -> ic)
+                    case fu: FlowUnknown    => complete(NotFound -> fu)
+                    case ma: Flow.PostAdded => completeCreated(ma.post.seqNo.toString, ma)
                   }
               }
             }
@@ -183,13 +182,11 @@ final class Api(address: String,
                 flowFacade: ActorRef,
                 flowFacadeTimeout: FiniteDuration,
                 mediator: ActorRef,
-                eventBufferSize: Int)
+                eventBufferSize: Int)(implicit mat: Materializer)
     extends Actor
     with ActorLogging {
   import Api._
   import context.dispatcher
-
-  private implicit val mat = ActorMaterializer()
 
   Http(context.system)
     .bindAndHandle(route(flowFacade, flowFacadeTimeout, mediator, eventBufferSize), address, port)

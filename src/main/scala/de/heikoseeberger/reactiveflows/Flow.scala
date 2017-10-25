@@ -27,8 +27,6 @@ import scala.math.{ max, min }
 
 object Flow {
 
-  // TODO Use receive timeout to actively passivate!
-
   sealed trait Command
   sealed trait Event
   sealed trait Serializable extends JavaSerializable
@@ -54,13 +52,21 @@ object Flow {
                     mediator: ActorRef,
                     shardCount: Int,
                     passivationTimeout: FiniteDuration): ActorRef = {
+    import ShardRegion._
     def shardId(name: String) = (name.hashCode.abs % shardCount).toString
+    val extractEntityId: ExtractEntityId = {
+      case CommandEnvelope(name, command) => (name, command)
+    }
+    val extractShardId: ExtractShardId = {
+      case CommandEnvelope(name, _)      => shardId(name)
+      case ShardRegion.StartEntity(name) => shardId(name)
+    }
     ClusterSharding(system).start(
       className[Flow],
       Flow(mediator, passivationTimeout),
       ClusterShardingSettings(system),
-      { case CommandEnvelope(name, command) => (name, command) },
-      { case CommandEnvelope(name, _)       => shardId(name) }
+      extractEntityId,
+      extractShardId
     )
   }
 }
@@ -77,11 +83,11 @@ final class Flow(mediator: ActorRef, passivationTimeout: FiniteDuration)
   context.setReceiveTimeout(passivationTimeout)
 
   override def receiveCommand = {
-    case GetPosts(seqNo, _) if seqNo < 0  => badCommand("seqNo < 0")
-    case GetPosts(_, count) if count <= 0 => badCommand("count <= 0")
+    case GetPosts(seqNo, _) if seqNo < 0  => sender() ! InvalidCommand("seqNo < 0")
+    case GetPosts(_, count) if count <= 0 => sender() ! InvalidCommand("count <= 0")
     case GetPosts(seqNo, count)           => handleGetPosts(seqNo, count)
 
-    case AddPost("")   => badCommand("text empty")
+    case AddPost("")   => sender() ! InvalidCommand("text empty")
     case AddPost(text) => handleAddPost(text)
 
     case ReceiveTimeout => context.parent ! ShardRegion.Passivate(Terminate)
@@ -94,7 +100,7 @@ final class Flow(mediator: ActorRef, passivationTimeout: FiniteDuration)
   }
 
   private def handleGetPosts(seqNo: Long, count: Int) = {
-    // TODO: We can use proper `Long` values in a later step!
+    // TODO: Using CQRS and a suitable read model makes this hacky Long->Int issue obsolete!
     val seqNoInt = min(seqNo, Int.MaxValue).toInt
     val n        = max(posts.size - 1 - seqNoInt, 0)
     sender() ! Posts(posts.slice(n, n + count))
