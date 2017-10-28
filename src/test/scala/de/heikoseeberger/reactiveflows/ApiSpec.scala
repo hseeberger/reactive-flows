@@ -48,8 +48,6 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
   import Api._
   import EventStreamUnmarshalling._
 
-  private val timeout = 250.milliseconds.dilated
-
   "Api" should {
     "stop itself when the HTTP binding fails" in {
       val probe = TestProbe()
@@ -58,7 +56,8 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
                          system.deadLetters,
                          100.milliseconds.dilated,
                          system.deadLetters,
-                         99)
+                         99,
+                         10.seconds.dilated)
       def createAndWatch() = probe.watch(system.actorOf(apiProps))
       val api1             = createAndWatch()
       val api2             = createAndWatch()
@@ -70,14 +69,22 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
 
   "Api.route" should {
     "respond with PermanentRedirect to index.html upon a 'GET /'" in {
-      Get() ~> route(system.deadLetters, timeout, system.deadLetters, 99) ~> check {
+      Get() ~> route(system.deadLetters,
+                     250.milliseconds.dilated,
+                     system.deadLetters,
+                     99,
+                     10.seconds.dilated) ~> check {
         status shouldBe PermanentRedirect
         header[Location] shouldBe Some(Location(Uri("index.html")))
       }
     }
 
     "respond with OK upon a 'GET /test.html'" in {
-      Get("/test.html") ~> route(system.deadLetters, timeout, system.deadLetters, 99) ~> check {
+      Get("/test.html") ~> route(system.deadLetters,
+                                 250.milliseconds.dilated,
+                                 system.deadLetters,
+                                 99,
+                                 10.seconds.dilated) ~> check {
         status shouldBe OK
         responseAs[String].trim shouldBe "test"
       }
@@ -100,7 +107,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
               NoAutoPilot
         }
       )
-      Get("/flows") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Get("/flows") ~> route(flowFacade.ref,
+                             250.milliseconds.dilated,
+                             system.deadLetters,
+                             99,
+                             10.seconds.dilated) ~> check {
         status shouldBe OK
         responseAs[Set[FlowDesc]] shouldBe flows
       }
@@ -118,7 +129,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
               NoAutoPilot
         }
       )
-      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref,
+                                               250.milliseconds.dilated,
+                                               system.deadLetters,
+                                               99,
+                                               10.seconds.dilated) ~> check {
         status shouldBe Created
         responseAs[FlowAdded] shouldBe flowAdded
       }
@@ -136,7 +151,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
               NoAutoPilot
         }
       )
-      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Post("/flows", AddFlow("Akka")) ~> route(flowFacade.ref,
+                                               250.milliseconds.dilated,
+                                               system.deadLetters,
+                                               99,
+                                               10.seconds.dilated) ~> check {
         status shouldBe Conflict
         responseAs[FlowExists] shouldBe flowExists
       }
@@ -154,7 +173,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
               NoAutoPilot
         }
       )
-      Post("/flows", AddFlow("")) ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Post("/flows", AddFlow("")) ~> route(flowFacade.ref,
+                                           250.milliseconds.dilated,
+                                           system.deadLetters,
+                                           99,
+                                           10.seconds.dilated) ~> check {
         status shouldBe BadRequest
         responseAs[InvalidCommand] shouldBe InvalidCommand(emptyLabel)
       }
@@ -172,7 +195,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
               NoAutoPilot
         }
       )
-      Delete("/flows/akka") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Delete("/flows/akka") ~> route(flowFacade.ref,
+                                     250.milliseconds.dilated,
+                                     system.deadLetters,
+                                     99,
+                                     10.seconds.dilated) ~> check {
         status shouldBe NoContent
       }
     }
@@ -189,7 +216,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
               NoAutoPilot
         }
       )
-      Delete("/flows/unknown") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Delete("/flows/unknown") ~> route(flowFacade.ref,
+                                        250.milliseconds.dilated,
+                                        system.deadLetters,
+                                        99,
+                                        10.seconds.dilated) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
@@ -207,7 +238,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
               NoAutoPilot
         }
       )
-      Get("/flows/akka/posts?count=2") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Get("/flows/akka/posts?count=2") ~> route(flowFacade.ref,
+                                                250.milliseconds.dilated,
+                                                system.deadLetters,
+                                                99,
+                                                10.seconds.dilated) ~> check {
         status shouldBe OK
         responseAs[Seq[Flow.Post]] shouldBe posts
       }
@@ -225,7 +260,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
               NoAutoPilot
         }
       )
-      Get("/flows/unknown/posts?seqNo=1") ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      Get("/flows/unknown/posts?seqNo=1") ~> route(flowFacade.ref,
+                                                   250.milliseconds.dilated,
+                                                   system.deadLetters,
+                                                   99,
+                                                   10.seconds.dilated) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
@@ -244,7 +283,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
         }
       )
       val request = RequestBuilding.Post("/flows/akka/posts", AddPostRequest("text"))
-      request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      request ~> route(flowFacade.ref,
+                       250.milliseconds.dilated,
+                       system.deadLetters,
+                       99,
+                       10.seconds.dilated) ~> check {
         status shouldBe Created
         responseAs[PostAdded] shouldBe postAdded
       }
@@ -263,7 +306,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
         }
       )
       val request = Post("/flows/unknown/posts", AddPostRequest("text"))
-      request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      request ~> route(flowFacade.ref,
+                       250.milliseconds.dilated,
+                       system.deadLetters,
+                       99,
+                       10.seconds.dilated) ~> check {
         status shouldBe NotFound
         responseAs[FlowUnknown] shouldBe flowUnknown
       }
@@ -282,7 +329,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
         }
       )
       val request = Post("/flows/akka/posts", AddPostRequest(""))
-      request ~> route(flowFacade.ref, timeout, system.deadLetters, 99) ~> check {
+      request ~> route(flowFacade.ref,
+                       250.milliseconds.dilated,
+                       system.deadLetters,
+                       99,
+                       10.seconds.dilated) ~> check {
         status shouldBe BadRequest
         responseAs[InvalidCommand] shouldBe InvalidCommand(emptyText)
       }
@@ -305,7 +356,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
           }
       })
       val request = Get("/flows-events")
-      request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
+      request ~> route(system.deadLetters,
+                       250.milliseconds.dilated,
+                       mediator.ref,
+                       99,
+                       10.seconds.dilated) ~> check {
         status shouldBe StatusCodes.OK
         responseAs[Source[ServerSentEvent, NotUsed]]
           .collect { case ServerSentEvent(d, Some(tpe), _, _) => (decode[FlowDesc](d), tpe) }
@@ -332,7 +387,11 @@ final class ApiSpec extends AsyncWordSpec with Matchers with RouteTest with Scal
           }
       })
       val request = Get("/flow-events")
-      request ~> route(system.deadLetters, timeout, mediator.ref, 99) ~> check {
+      request ~> route(system.deadLetters,
+                       250.milliseconds.dilated,
+                       mediator.ref,
+                       99,
+                       10.seconds.dilated) ~> check {
         status shouldBe StatusCodes.OK
         responseAs[Source[ServerSentEvent, NotUsed]]
           .collect {

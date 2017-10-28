@@ -58,7 +58,9 @@ object Main {
       val port       = config.getInt("reactive-flows.api.port")
       val timeout    = config.getDuration("reactive-flows.api.flow-facade-timeout")
       val bufferSize = config.getInt("reactive-flows.api.event-buffer-size")
-      context.actorOf(Api(address, port, flowFacade, timeout, mediator, bufferSize), Api.Name)
+      val heartbeat  = config.getDuration("reactive-flows.api.event-heartbeat")
+      context.actorOf(Api(address, port, flowFacade, timeout, mediator, bufferSize, heartbeat),
+                      Api.Name)
     }
 
     context.watch(flowFacade)

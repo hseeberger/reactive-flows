@@ -53,13 +53,23 @@ object Api {
             flowFacade: ActorRef,
             flowFacadeTimeout: FiniteDuration,
             mediator: ActorRef,
-            eventBufferSize: Int)(implicit mat: Materializer): Props =
-    Props(new Api(address, port, flowFacade, flowFacadeTimeout, mediator, eventBufferSize))
+            eventBufferSize: Int,
+            eventHeartbeat: FiniteDuration)(implicit mat: Materializer): Props =
+    Props(
+      new Api(address,
+              port,
+              flowFacade,
+              flowFacadeTimeout,
+              mediator,
+              eventBufferSize,
+              eventHeartbeat)
+    )
 
   def route(flowFacade: ActorRef,
             flowFacadeTimeout: Timeout,
             mediator: ActorRef,
-            eventBufferSize: Int)(implicit ec: ExecutionContext): Route = {
+            eventBufferSize: Int,
+            eventHeartbeat: FiniteDuration)(implicit ec: ExecutionContext): Route = {
     import Directives._
     import EventStreamMarshalling._
     import FailFastCirceSupport._
@@ -171,6 +181,7 @@ object Api {
       Source
         .actorRef[A](eventBufferSize, OverflowStrategy.dropHead)
         .map(toServerSentEvent)
+        .keepAlive(eventHeartbeat, () => ServerSentEvent.heartbeat)
         .mapMaterializedValue(source => mediator ! Subscribe(className[A], source))
 
     assets ~ flows ~ flowsEvents ~ flowEvents
@@ -182,14 +193,17 @@ final class Api(address: String,
                 flowFacade: ActorRef,
                 flowFacadeTimeout: FiniteDuration,
                 mediator: ActorRef,
-                eventBufferSize: Int)(implicit mat: Materializer)
+                eventBufferSize: Int,
+                eventHeartbeat: FiniteDuration)(implicit mat: Materializer)
     extends Actor
     with ActorLogging {
   import Api._
   import context.dispatcher
 
   Http(context.system)
-    .bindAndHandle(route(flowFacade, flowFacadeTimeout, mediator, eventBufferSize), address, port)
+    .bindAndHandle(route(flowFacade, flowFacadeTimeout, mediator, eventBufferSize, eventHeartbeat),
+                   address,
+                   port)
     .pipeTo(self)
 
   override def receive = {
