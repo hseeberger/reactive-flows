@@ -28,7 +28,7 @@ First start Cassandra and etcd:
 
 ```
 docker-compose rm -f -s -v
-docker-compose up etcd cassandra
+docker-compose up -d etcd cassandra
 ```
 
 Then start a first instance in sbt:
