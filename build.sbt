@@ -37,15 +37,15 @@ lazy val `reactive-flows` =
 lazy val library =
   new {
     object Version {
-      val akka                     = "2.5.6"
+      val akka                     = "2.5.7"
       val akkaHttp                 = "10.0.10"
       val akkaHttpJson             = "1.18.1"
-      val akkaLog4j                = "1.5.0"
-      val akkaPersistenceCassandra = "0.58"
+      val akkaLog4j                = "1.6.0"
+      val akkaPersistenceCassandra = "0.59"
       val akkaPersistenceInmemory  = "2.5.1.1"
       val circe                    = "0.8.0"
-      val constructr               = "0.17.0"
-      val log4j                    = "2.9.1"
+      val constructr               = "0.18.0"
+      val log4j                    = "2.10.0"
       val scalaTest                = "3.0.4"
       val scalapb                  = com.trueaccord.scalapb.compiler.Version.scalapbVersion
     }
