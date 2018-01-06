@@ -1,6 +1,6 @@
 addSbtPlugin("com.dwijnand"      % "sbt-travisci"        % "1.1.1")
 addSbtPlugin("com.jsuereth"      % "sbt-pgp"             % "1.1.0")
-addSbtPlugin("com.lucidchart"    % "sbt-scalafmt"        % "1.14")
+addSbtPlugin("com.geirsson"      % "sbt-scalafmt"        % "1.4.0")
 addSbtPlugin("com.thesamet"      % "sbt-protoc"          % "0.99.13")
 addSbtPlugin("com.typesafe.sbt"  % "sbt-git"             % "0.9.3")
 addSbtPlugin("com.typesafe.sbt"  % "sbt-multi-jvm"       % "0.4.0")

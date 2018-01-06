@@ -37,7 +37,7 @@ lazy val `reactive-flows` =
 lazy val library =
   new {
     object Version {
-      val akka                     = "2.5.7"
+      val akka                     = "2.5.8"
       val akkaHttp                 = "10.0.11"
       val akkaHttpJson             = "1.18.1"
       val akkaLog4j                = "1.6.0"
@@ -96,10 +96,10 @@ lazy val commonSettings =
       "-target:jvm-1.8",
       "-encoding", "UTF-8"
     ),
-    unmanagedSourceDirectories.in(Compile) := Seq(scalaSource.in(Compile).value),
-    unmanagedSourceDirectories.in(Test) := Seq(scalaSource.in(Test).value),
-    publishArtifact.in(Compile, packageDoc) := false,
-    publishArtifact.in(Compile, packageSrc) := false
+    Compile / unmanagedSourceDirectories := Seq((Compile / scalaSource).value),
+    Test / unmanagedSourceDirectories := Seq((Test / scalaSource).value),
+    Compile / packageDoc / publishArtifact := false,
+    Compile / packageSrc / publishArtifact := false
   )
 
 lazy val gitSettings =
@@ -109,17 +109,15 @@ lazy val gitSettings =
 
 lazy val scalafmtSettings =
   Seq(
-    scalafmtOnCompile := true,
-    scalafmtOnCompile.in(Sbt) := false,
-    scalafmtVersion := "1.3.0"
+    scalafmtOnCompile := true
   )
 
 lazy val dockerSettings =
   Seq(
-    daemonUser.in(Docker) := "root",
-    maintainer.in(Docker) := "Heiko Seeberger",
-    version.in(Docker) := "latest",
-    dockerBaseImage := "openjdk:8u141-slim",
+    Docker / daemonUser := "root",
+    Docker / maintainer := "Heiko Seeberger",
+    Docker / version := "latest",
+    dockerBaseImage := "openjdk:8u151-slim",
     dockerExposedPorts := Vector(8000),
     dockerRepository := Some("hseeberger")
   )
