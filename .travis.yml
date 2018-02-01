@@ -4,6 +4,6 @@ scala:
   - 2.12.4
 
 jdk:
-  - oraclejdk8
+  - oraclejdk9
 
 sbt_args: -Dakka.test.timefactor=3.0

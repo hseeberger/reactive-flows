@@ -37,16 +37,16 @@ lazy val `reactive-flows` =
 lazy val library =
   new {
     object Version {
-      val akka                     = "2.5.8"
-      val akkaHttp                 = "10.0.11"
-      val akkaHttpJson             = "1.18.1"
+      val akka                     = "2.5.9"
+      val akkaHttp                 = "10.1.0-RC1"
+      val akkaHttpJson             = "1.20.0-RC1"
       val akkaLog4j                = "1.6.0"
-      val akkaPersistenceCassandra = "0.59"
+      val akkaPersistenceCassandra = "0.80"
       val akkaPersistenceInmemory  = "2.5.1.1"
-      val circe                    = "0.8.0"
-      val constructr               = "0.18.0"
+      val circe                    = "0.9.1"
+      val constructr               = "0.18.1"
       val log4j                    = "2.10.0"
-      val scalaTest                = "3.0.4"
+      val scalaTest                = "3.0.5"
       val scalapb                  = com.trueaccord.scalapb.compiler.Version.scalapbVersion
     }
     val akkaClusterSharding        = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Version.akka
