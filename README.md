@@ -34,13 +34,13 @@ docker-compose up -d etcd cassandra
 Then start a first instance in sbt:
 
 ```
-reStart --- -Dcassandra-journal.contact-points.0=127.0.0.1:9042 -Dconstructr.coordination.host=127.0.0.1
+reStart --- -Dcassandra-journal.contact-points.0=127.0.0.1:9042 -Dconstructr.coordination.host=127.0.0.1 -Dakka.remote.netty.tcp.hostname=127.0.0.1 -Dakka.remote.netty.tcp.port=2550
 ```
 
 To start another instance in sbt, provide additional configuration settings:
 
 ```
-reStart --- -Dcassandra-journal.contact-points.0=127.0.0.1:9042 -Dconstructr.coordination.host=127.0.0.1 -Dreactive-flows.api.port=8001 -Dakka.remote.artery.canonical.port=25521
+reStart --- -Dcassandra-journal.contact-points.0=127.0.0.1:9042 -Dconstructr.coordination.host=127.0.0.1 -Dakka.remote.netty.tcp.hostname=127.0.0.1 -Dakka.remote.netty.tcp.port=2551 -Dreactive-flows.api.port=8001
 ```
 
 ## REST API Examples ##

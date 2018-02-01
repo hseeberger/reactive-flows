@@ -26,15 +26,14 @@ import scala.concurrent.duration.DurationInt
 
 object MultiNodeFlowFacadeSpecConfig extends MultiNodeConfig {
 
-  val Vector(node1, node2) = Vector(12551, 12552).map(node)
+  val Vector(node1, node2) = Vector(2550, 2551).map(node)
 
   private def node(port: Int) = {
     val node = role(port.toString)
     nodeConfig(node)(
       ConfigFactory
         .parseString(
-          s"""|akka.remote.artery.advanced.aeron-dir = "/tmp/reactive-flows-aeron-$port"
-              |akka.remote.artery.canonical.port     = $port
+          s"""|akka.remote.netty.tcp.port = $port
               |""".stripMargin
         )
         .withFallback(ConfigFactory.load())
